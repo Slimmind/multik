@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>MOV → MP4</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <h2>Конвертер MOV → MP4</h2>
+
+  <div id="dropZone">
+    <p>Перетащите файлы сюда или кликните для выбора</p>
+    <input type="file" id="fileInput" accept=".mov,video/quicktime" multiple>
+  </div>
+
+  <ul id="fileList"></ul>
+
+  <script src="index.js"></script>
+</body>
+
+</html>

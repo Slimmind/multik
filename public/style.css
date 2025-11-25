@@ -1,0 +1,234 @@
+:root {
+  --primary-color: #007AFF;
+  /* macOS Blue */
+  --success-color: #34C759;
+  /* macOS Green */
+  --error-color: #FF3B30;
+  /* macOS Red */
+  --warning-color: #FF9500;
+  /* macOS Orange */
+  --bg-color: #f5f5f7;
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --text-primary: #1d1d1f;
+  --text-secondary: #86868b;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-color);
+  /* Optional: Abstract background for glassmorphism to shine */
+  background-image: radial-gradient(circle at 50% 0%, #eef2f5 0%, #e6e9ef 100%);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 40px 20px;
+  min-height: 100vh;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
+h2 {
+  text-align: center;
+  font-weight: 600;
+  font-size: 28px;
+  margin-bottom: 30px;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+/* Main Container (optional wrapper if we had one, but applying to elements directly) */
+
+/* Drop Zone */
+#dropZone {
+  background: var(--card-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 60px 40px;
+  text-align: center;
+  color: var(--text-secondary);
+  margin: 0 auto 30px auto;
+  max-width: 700px;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+#dropZone:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(0, 122, 255, 0.3);
+}
+
+#dropZone.dragover {
+  border-color: var(--primary-color);
+  background: rgba(0, 122, 255, 0.05);
+  color: var(--primary-color);
+  transform: scale(1.02);
+}
+
+#dropZone p {
+  font-size: 17px;
+  margin: 0;
+  pointer-events: none;
+}
+
+#fileInput {
+  display: none;
+}
+
+/* File List */
+#fileList {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto;
+  max-width: 700px;
+}
+
+.file-item {
+  background: var(--card-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.file-item:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.file-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.file-header span:first-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70%;
+}
+
+.file-status {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-secondary);
+}
+
+.file-status.pending {
+  background: rgba(255, 149, 0, 0.1);
+  color: var(--warning-color);
+}
+
+.file-status.processing {
+  background: rgba(0, 122, 255, 0.1);
+  color: var(--primary-color);
+}
+
+.file-status.completed {
+  background: rgba(52, 199, 89, 0.1);
+  color: var(--success-color);
+}
+
+.file-status.error {
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--error-color);
+}
+
+/* Progress Bar */
+.progress-container {
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 6px;
+  height: 6px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: var(--primary-color);
+  width: 0%;
+  transition: width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border-radius: 6px;
+}
+
+.progress-bar.completed {
+  background-color: var(--success-color);
+}
+
+.progress-bar.error {
+  background-color: var(--error-color);
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+button {
+  border: none;
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.cancel-btn {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--text-secondary);
+}
+
+.cancel-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: var(--text-primary);
+}
+
+.retry-btn {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.retry-btn:hover {
+  background-color: #0062cc;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+}
+
+.download-link {
+  color: var(--success-color);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+  margin-left: 5px;
+  transition: opacity 0.2s;
+}
+
+.download-link:hover {
+  opacity: 0.8;
+  text-decoration: none;
+}
