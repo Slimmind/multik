@@ -9,8 +9,8 @@ const socket = io({
     query: { clientId }
 });
 
-let queue = [];
-let isProcessing = false;
+let uploadQueue = [];
+let isUploading = false;
 const allFiles = new Map(); // Store all files by ID
 
 // --- Restore State ---
@@ -20,42 +20,35 @@ async function restoreState() {
         const jobs = await res.json();
 
         jobs.forEach(job => {
-            // Reconstruct file object (mocking the File object since we can't restore it fully)
-            // But we don't need the File object for completed/processing jobs unless we retry (which requires re-upload)
-            // For now, we just show the status.
-
             const fileObj = {
                 id: job.id,
                 file: { name: job.filename }, // Mock
                 status: job.status,
-                restored: true // Flag to know we can't re-upload this easily without user action
+                restored: true
             };
 
             allFiles.set(job.id, fileObj);
             renderFileItem(fileObj);
 
-            if (job.status === 'processing') {
-                // If it's processing, we don't add to queue immediately to avoid double upload,
-                // but we need to listen to progress.
-                // Actually, since it's server-side processing, we just update UI.
+            const li = document.getElementById(job.id);
+            if (!li) return;
+
+            if (job.status === 'queued') {
+                 li.querySelector('.file-status').textContent = 'В очереди на конвертацию';
+                 li.querySelector('.file-status').className = 'file-status pending';
+                 li.querySelector('.cancel-btn').style.display = 'inline-block';
+            } else if (job.status === 'processing') {
                 updateProgress(job.id, job.progress);
-                const li = document.getElementById(job.id);
-                if (li) {
-                    li.querySelector('.file-status').textContent = 'Конвертация...';
-                    li.querySelector('.file-status').className = 'file-status processing';
-                    li.querySelector('.cancel-btn').style.display = 'inline-block';
-                }
+                li.querySelector('.file-status').textContent = 'Конвертация...';
+                li.querySelector('.file-status').className = 'file-status processing';
+                li.querySelector('.cancel-btn').style.display = 'inline-block';
             } else if (job.status === 'completed') {
                 markCompleted(job.id, job.url);
             } else if (job.status === 'error') {
                 markError(job.id, job.error);
             } else if (job.status === 'cancelled') {
-                // Manually mark as cancelled
-                const li = document.getElementById(job.id);
-                if (li) {
-                    li.querySelector('.file-status').textContent = 'Отменено';
-                    li.querySelector('.file-status').className = 'file-status error';
-                }
+                li.querySelector('.file-status').textContent = 'Отменено';
+                li.querySelector('.file-status').className = 'file-status error';
             }
         });
     } catch (e) {
@@ -70,36 +63,25 @@ socket.on('connect', () => {
     console.log('Connected with Client ID:', clientId);
 });
 
+socket.on('status_change', (data) => {
+    const li = document.getElementById(data.id);
+    if (li && data.status === 'processing') {
+        li.querySelector('.file-status').textContent = 'Конвертация...';
+        li.querySelector('.file-status').className = 'file-status processing';
+    }
+});
+
 socket.on('progress', (data) => {
-    // data: { id, progress }
     updateProgress(data.id, data.progress);
 });
 
 socket.on('complete', (data) => {
-    // data: { id, url }
     markCompleted(data.id, data.url);
-
-    // Remove from queue if it was there
-    removeFromQueue(data.id);
-    isProcessing = false;
-    processQueue();
 });
 
 socket.on('error', (data) => {
-    // data: { id, message }
     markError(data.id, data.message);
-
-    removeFromQueue(data.id);
-    isProcessing = false;
-    processQueue();
 });
-
-function removeFromQueue(id) {
-    const idx = queue.findIndex(f => f.id === id);
-    if (idx !== -1) {
-        queue.splice(idx, 1);
-    }
-}
 
 // --- UI Logic ---
 const dropZone = document.getElementById('dropZone');
@@ -130,17 +112,21 @@ fileInput.addEventListener('change', (e) => {
 });
 
 function handleFiles(files) {
-    Array.from(files).forEach(file => {
-        // Simple ID generation
+    const newFiles = Array.from(files).map(file => {
         const id = 'job-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-        const fileObj = { id, file, status: 'pending' };
+        return { id, file, status: 'pending', size: file.size };
+    });
 
-        allFiles.set(id, fileObj); // Store for later retrieval
-        queue.push(fileObj);
+    // Sort by size (ascending)
+    newFiles.sort((a, b) => a.size - b.size);
+
+    newFiles.forEach(fileObj => {
+        allFiles.set(fileObj.id, fileObj);
+        uploadQueue.push(fileObj);
         renderFileItem(fileObj);
     });
 
-    processQueue();
+    processUploadQueue();
 }
 
 function renderFileItem(fileObj) {
@@ -150,7 +136,7 @@ function renderFileItem(fileObj) {
     li.innerHTML = `
         <div class="file-header">
           <span>${fileObj.file.name}</span>
-          <span class="file-status pending">Ожидание...</span>
+          <span class="file-status pending">Ожидание загрузки...</span>
         </div>
         <div class="progress-container">
           <div class="progress-bar" style="width: 0%"></div>
@@ -163,63 +149,117 @@ function renderFileItem(fileObj) {
     fileList.appendChild(li);
 }
 
-// --- Queue Processing ---
-async function processQueue() {
-    if (isProcessing || queue.length === 0) return;
+// --- Upload Queue Processing ---
+async function processUploadQueue() {
+    if (isUploading || uploadQueue.length === 0) return;
 
-    isProcessing = true;
-    const currentFile = queue[0];
+    isUploading = true;
+    const currentFile = uploadQueue[0];
 
-    // Check if element exists (it might be a restored job that is not in DOM if we cleared it, but here we append)
-    let li = document.getElementById(currentFile.id);
-    if (!li) return; // Should not happen
+    const li = document.getElementById(currentFile.id);
+    if (!li) {
+        // Element might be missing if cancelled/removed before upload started
+        uploadQueue.shift();
+        isUploading = false;
+        processUploadQueue();
+        return;
+    }
 
-    // Update UI to processing
-    li.querySelector('.file-status').textContent = 'Конвертация...';
+    // Update UI to uploading
+    li.querySelector('.file-status').textContent = 'Загрузка...';
     li.querySelector('.file-status').className = 'file-status processing';
     li.querySelector('.cancel-btn').style.display = 'inline-block';
     li.querySelector('.retry-btn').style.display = 'none';
 
-    // Reset progress bar color
-    const progressBar = li.querySelector('.progress-bar');
-    progressBar.classList.remove('completed', 'error');
-
-    // Upload
     const fd = new FormData();
     fd.append('video', currentFile.file);
     fd.append('clientId', clientId);
     fd.append('jobId', currentFile.id);
 
-    try {
-        const res = await fetch('/convert', { method: 'POST', body: fd });
-        const json = await res.json();
+    const xhr = new XMLHttpRequest();
 
-        if (json.error) {
-            throw new Error(json.error);
+    xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 100;
+            li.querySelector('.progress-bar').style.width = percentComplete + '%';
         }
-        // Wait for socket events (progress/complete/error)
-    } catch (err) {
-        markError(currentFile.id, err.message);
-        queue.shift();
-        isProcessing = false;
-        processQueue();
-    }
+    };
+
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            // Upload complete, now it's queued on server
+            li.querySelector('.file-status').textContent = 'В очереди на конвертацию';
+            li.querySelector('.progress-bar').style.width = '0%'; // Reset for conversion progress
+
+            uploadQueue.shift();
+            isUploading = false;
+            processUploadQueue();
+        } else {
+            let errorMsg = 'Ошибка загрузки';
+            try {
+                const resp = JSON.parse(xhr.responseText);
+                if (resp.error) errorMsg = resp.error;
+            } catch(e) {}
+
+            markError(currentFile.id, errorMsg);
+            uploadQueue.shift();
+            isUploading = false;
+            processUploadQueue();
+        }
+    };
+
+    xhr.onerror = function() {
+        markError(currentFile.id, 'Ошибка сети при загрузке');
+        uploadQueue.shift();
+        isUploading = false;
+        processUploadQueue();
+    };
+
+    // Handle cancellation during upload
+    currentFile.xhr = xhr;
+
+    xhr.open('POST', '/upload', true);
+    xhr.send(fd);
 }
 
 async function cancelConversion(id) {
+    // Check if it's currently uploading
+    const fileObj = allFiles.get(id);
+    if (fileObj && fileObj.xhr) {
+        fileObj.xhr.abort();
+        fileObj.xhr = null;
+        markError(id, 'Загрузка отменена');
+        // Remove from upload queue
+        const idx = uploadQueue.findIndex(f => f.id === id);
+        if (idx !== -1) {
+            uploadQueue.splice(idx, 1);
+        }
+        if (isUploading) {
+             isUploading = false;
+             processUploadQueue();
+        }
+        return;
+    }
+
     // Optimistic UI update
     const li = document.getElementById(id);
     if (li) {
         li.querySelector('.file-status').textContent = 'Отменено';
-        li.querySelector('.file-status').className = 'file-status error'; // Use error style for cancelled
+        li.querySelector('.file-status').className = 'file-status error';
         li.querySelector('.cancel-btn').style.display = 'none';
-        // Retry is tricky for restored jobs because we don't have the file
-        const fileObj = allFiles.get(id);
+
         if (fileObj && !fileObj.restored) {
             li.querySelector('.retry-btn').style.display = 'inline-block';
         }
         li.querySelector('.progress-bar').style.width = '0%';
         li.querySelector('.progress-bar').classList.add('error');
+    }
+
+    // Remove from upload queue if pending
+    const idx = uploadQueue.findIndex(f => f.id === id);
+    if (idx !== -1) {
+        uploadQueue.splice(idx, 1);
+        // If we removed the head but it wasn't uploading (shouldn't happen if logic is correct), check next
     }
 
     try {
@@ -231,16 +271,8 @@ async function cancelConversion(id) {
     } catch (e) {
         console.error('Cancel failed', e);
     }
-
-    // Remove from queue if it was processing
-    removeFromQueue(id);
-    if (isProcessing) { // If we cancelled the current one
-        isProcessing = false;
-        processQueue();
-    }
 }
 
-// Redefine retryConversion with access to allFiles
 window.retryConversion = function (id) {
     const fileObj = allFiles.get(id);
     if (!fileObj || fileObj.restored) {
@@ -250,21 +282,21 @@ window.retryConversion = function (id) {
 
     const li = document.getElementById(id);
     if (li) {
-        li.querySelector('.file-status').textContent = 'Ожидание...';
+        li.querySelector('.file-status').textContent = 'Ожидание загрузки...';
         li.querySelector('.file-status').className = 'file-status pending';
         li.querySelector('.retry-btn').style.display = 'none';
 
         const progressBar = li.querySelector('.progress-bar');
-        progressBar.style.backgroundColor = ''; // Reset inline styles
+        progressBar.style.backgroundColor = '';
         progressBar.classList.remove('completed', 'error');
+        progressBar.style.width = '0%';
     }
 
-    // Add to queue
-    queue.push(fileObj);
-    processQueue();
+    // Add to upload queue
+    uploadQueue.push(fileObj);
+    processUploadQueue();
 }
 
-// Also expose cancelConversion to window
 window.cancelConversion = cancelConversion;
 
 function updateProgress(id, percent) {
@@ -287,7 +319,6 @@ function markCompleted(id, url) {
 
         li.querySelector('.cancel-btn').style.display = 'none';
 
-        // Add download link if not exists
         if (!statusEl.querySelector('.download-link')) {
             const link = document.createElement('a');
             link.href = url;
@@ -308,7 +339,7 @@ function markError(id, msg) {
 
         const progressBar = li.querySelector('.progress-bar');
         progressBar.classList.add('error');
-        progressBar.style.backgroundColor = ''; // Remove inline style if any
+        progressBar.style.backgroundColor = '';
 
         li.querySelector('.cancel-btn').style.display = 'none';
 

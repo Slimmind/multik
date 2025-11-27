@@ -24,6 +24,7 @@ app.use(express.static('public'));
 app.use('/output', express.static('output'));
 
 if (!fs.existsSync('output')) fs.mkdirSync('output');
+if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
 
 // Парсим строку времени вида "00:01:23.45" → секунды
 function timeToSeconds(timeStr) {
@@ -36,14 +37,13 @@ const jobs = new Map();
 // Хранилище клиентов: clientId -> socketId
 const clients = new Map();
 
+let isConverting = false;
+
 io.on('connection', (socket) => {
   const clientId = socket.handshake.query.clientId;
   if (clientId) {
     clients.set(clientId, socket.id);
     console.log(`Client connected: ${clientId} -> ${socket.id}`);
-
-    // При переподключении можно отправить текущие статусы, если нужно
-    // Но клиент сам запросит список через API
   }
 
   socket.on('disconnect', () => {
@@ -73,7 +73,7 @@ app.get('/jobs/:clientId', (req, res) => {
   res.json(userJobs);
 });
 
-app.post('/convert', upload.single('video'), (req, res) => {
+app.post('/upload', upload.single('video'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Нет файла' });
 
   const clientId = req.body.clientId;
@@ -81,25 +81,55 @@ app.post('/convert', upload.single('video'), (req, res) => {
 
   if (!clientId || !jobId) return res.status(400).json({ error: 'Нет clientId или jobId' });
 
-  const inputFile = req.file.path;
-  const originalName = path.parse(req.file.originalname).name;
-  const outputFile = path.join('output', `${originalName}.mp4`);
-
   // Создаем запись о задании
   jobs.set(jobId, {
     id: jobId,
     clientId,
     filename: req.file.originalname,
-    status: 'processing',
+    inputPath: req.file.path,
+    status: 'queued',
     progress: 0,
-    process: null // Будет заполнен ниже
+    process: null
   });
 
-  res.json({ status: 'started' });
+  res.json({ status: 'queued' });
+
+  // Пытаемся запустить обработку
+  processQueue();
+});
+
+function processQueue() {
+  if (isConverting) return;
+
+  // Найти следующее задание (самое старое queued)
+  let nextJob = null;
+  for (const job of jobs.values()) {
+    if (job.status === 'queued') {
+      nextJob = job;
+      break;
+    }
+  }
+
+  if (!nextJob) return;
+
+  startConversion(nextJob);
+}
+
+function startConversion(job) {
+  isConverting = true;
+  job.status = 'processing';
+
+  const socketId = clients.get(job.clientId);
+  if (socketId) {
+    io.to(socketId).emit('status_change', { id: job.id, status: 'processing' });
+  }
+
+  const originalName = path.parse(job.filename).name;
+  const outputFile = path.join('output', `${originalName}.mp4`);
 
   const ffmpeg = spawn('ffmpeg', [
     '-threads', '2',
-    '-i', inputFile,
+    '-i', job.inputPath,
     '-c:v', 'libx264',
     '-preset', 'fast',
     '-threads', '2',
@@ -109,7 +139,6 @@ app.post('/convert', upload.single('video'), (req, res) => {
     outputFile
   ]);
 
-  const job = jobs.get(jobId);
   job.process = ffmpeg;
 
   let duration = null;
@@ -134,55 +163,65 @@ app.post('/convert', upload.single('video'), (req, res) => {
 
       job.progress = progress;
 
-      const socketId = clients.get(clientId);
+      const socketId = clients.get(job.clientId);
       if (socketId) {
-        io.to(socketId).emit('progress', { id: jobId, progress });
+        io.to(socketId).emit('progress', { id: job.id, progress });
       }
     }
   });
 
   ffmpeg.on('close', (code, signal) => {
-    fs.unlink(inputFile, () => { });
+    isConverting = false;
+    fs.unlink(job.inputPath, () => { }); // Удаляем исходник
 
     if (signal === 'SIGKILL' || signal === 'SIGTERM') {
       fs.unlink(outputFile, () => { });
       job.status = 'cancelled';
-      // job.process уже не нужен
-      return;
-    }
-
-    if (code === 0) {
+      // Уведомление клиенту уже могло уйти при отмене
+    } else if (code === 0) {
       const url = `/output/${path.basename(outputFile)}`;
       job.status = 'completed';
       job.progress = 100;
       job.url = url;
 
-      const socketId = clients.get(clientId);
+      const socketId = clients.get(job.clientId);
       if (socketId) {
-        io.to(socketId).emit('complete', { id: jobId, url });
+        io.to(socketId).emit('complete', { id: job.id, url });
       }
     } else {
       console.error('FFmpeg error:\n', stderr);
       job.status = 'error';
       job.error = 'Конвертация не удалась';
 
-      const socketId = clients.get(clientId);
+      const socketId = clients.get(job.clientId);
       if (socketId) {
-        io.to(socketId).emit('error', { id: jobId, message: 'Конвертация не удалась' });
+        io.to(socketId).emit('error', { id: job.id, message: 'Конвертация не удалась' });
       }
     }
+
+    // Запускаем следующее задание
+    processQueue();
   });
-});
+}
 
 app.post('/cancel', express.json(), (req, res) => {
   const { jobId } = req.body;
   if (!jobId) return res.status(400).json({ error: 'Нет jobId' });
 
   const job = jobs.get(jobId);
-  if (job && job.process) {
-    job.process.kill('SIGKILL');
-    job.status = 'cancelled';
-    job.process = null;
+  if (job) {
+    if (job.status === 'processing' && job.process) {
+      job.process.kill('SIGKILL');
+      job.status = 'cancelled';
+      job.process = null;
+      // isConverting сбросится в обработчике close
+    } else if (job.status === 'queued') {
+      job.status = 'cancelled';
+      // Удаляем файл, если он был загружен
+      if (job.inputPath) {
+        fs.unlink(job.inputPath, () => {});
+      }
+    }
     return res.json({ status: 'cancelled' });
   }
 
