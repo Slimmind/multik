@@ -33,6 +33,11 @@ async function restoreState() {
             const li = document.getElementById(job.id);
             if (!li) return;
 
+            // Set thumbnail if available
+            if (job.thumbnail) {
+                setThumbnail(job.id, job.thumbnail);
+            }
+
             if (job.status === 'queued') {
                  li.querySelector('.file-status').textContent = 'В очереди на конвертацию';
                  li.querySelector('.file-status').className = 'file-status pending';
@@ -82,6 +87,10 @@ socket.on('complete', (data) => {
 
 socket.on('error', (data) => {
     markError(data.id, data.message);
+});
+
+socket.on('thumbnail', (data) => {
+    setThumbnail(data.id, data.url);
 });
 
 // --- UI Logic ---
@@ -135,19 +144,39 @@ function renderFileItem(fileObj) {
     li.id = fileObj.id;
     li.className = 'file-item';
     li.innerHTML = `
-        <div class="file-header">
-          <span>${fileObj.file.name}</span>
-          <span class="file-status pending">Ожидание загрузки...</span>
-        </div>
-        <div class="progress-container">
-          <div class="progress-bar" style="width: 0%"></div>
-        </div>
-        <div class="actions" style="margin-top: 10px;">
-           <button class="cancel-btn" style="display:none;" onclick="cancelConversion('${fileObj.id}')">Отмена</button>
-           <button class="retry-btn" style="display:none;" onclick="retryConversion('${fileObj.id}')">Повторить</button>
+        <div class="file-content">
+          <div class="file-thumbnail">
+            <div class="thumbnail-placeholder">🎬</div>
+          </div>
+          <div class="file-info">
+            <div class="file-header">
+              <span>${fileObj.file.name}</span>
+              <span class="file-status pending">Ожидание загрузки...</span>
+            </div>
+            <div class="progress-container">
+              <div class="progress-bar" style="width: 0%"></div>
+            </div>
+            <div class="actions" style="margin-top: 10px;">
+               <button class="cancel-btn" style="display:none;" onclick="cancelConversion('${fileObj.id}')">Отмена</button>
+               <button class="retry-btn" style="display:none;" onclick="retryConversion('${fileObj.id}')">Повторить</button>
+            </div>
+          </div>
         </div>
       `;
     fileList.appendChild(li);
+}
+
+function setThumbnail(id, url) {
+    const li = document.getElementById(id);
+    if (li) {
+        const placeholder = li.querySelector('.thumbnail-placeholder');
+        if (placeholder) {
+            placeholder.style.backgroundImage = `url(${url})`;
+            placeholder.style.backgroundSize = 'cover';
+            placeholder.style.backgroundPosition = 'center';
+            placeholder.textContent = '';
+        }
+    }
 }
 
 // --- Upload Queue Processing ---

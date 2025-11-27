@@ -66,7 +66,8 @@ app.get('/jobs/:clientId', (req, res) => {
         progress: job.progress,
         url: job.url,
         error: job.error,
-        compressionRatio: job.compressionRatio // Send ratio if available
+        compressionRatio: job.compressionRatio,
+        thumbnail: job.thumbnail
       });
     }
   }
@@ -83,18 +84,43 @@ app.post('/upload', upload.single('video'), (req, res) => {
   if (!clientId || !jobId) return res.status(400).json({ error: 'Нет clientId или jobId' });
 
   // Создаем запись о задании
-  jobs.set(jobId, {
+  const job = {
     id: jobId,
     clientId,
     filename: req.file.originalname,
     inputPath: req.file.path,
-    originalSize: req.file.size, // Store original size
+    originalSize: req.file.size,
     status: 'queued',
     progress: 0,
-    process: null
-  });
+    process: null,
+    thumbnail: null
+  };
+  jobs.set(jobId, job);
 
   res.json({ status: 'queued' });
+
+  // Generate thumbnail asynchronously
+  const thumbnailName = `thumb-${jobId}.jpg`;
+  const thumbnailPath = path.join('output', thumbnailName);
+
+  const thumbProc = spawn('ffmpeg', [
+    '-i', job.inputPath,
+    '-ss', '00:00:01.000',
+    '-vframes', '1',
+    '-vf', 'scale=320:-1', // Resize for performance
+    '-y',
+    thumbnailPath
+  ]);
+
+  thumbProc.on('close', (code) => {
+      if (code === 0) {
+          job.thumbnail = `/output/${thumbnailName}`;
+          const socketId = clients.get(clientId);
+          if (socketId) {
+              io.to(socketId).emit('thumbnail', { id: jobId, url: job.thumbnail });
+          }
+      }
+  });
 
   // Пытаемся запустить обработку
   processQueue();
