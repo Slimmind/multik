@@ -146,12 +146,17 @@ function renderFileItem(fileObj) {
     li.innerHTML = `
         <div class="file-content">
           <div class="file-thumbnail">
-            <div class="thumbnail-placeholder">🎬</div>
+            <div class="thumbnail-placeholder"></div>
           </div>
           <div class="file-info">
             <div class="file-header">
               <span>${fileObj.file.name}</span>
               <span class="file-status pending">Ожидание загрузки...</span>
+              <button class="delete-btn" style="display:none;" onclick="deleteItem('${fileObj.id}')" title="Удалить">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M11 3.5L10.5 12C10.5 12.5 10 13 9.5 13H4.5C4 13 3.5 12.5 3.5 12L3 3.5M5.5 3.5V2C5.5 1.5 6 1 6.5 1H7.5C8 1 8.5 1.5 8.5 2V3.5M1.5 3.5H12.5M5.5 6V10.5M8.5 6V10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
             </div>
             <div class="progress-container">
               <div class="progress-bar" style="width: 0%"></div>
@@ -174,7 +179,6 @@ function setThumbnail(id, url) {
             placeholder.style.backgroundImage = `url(${url})`;
             placeholder.style.backgroundSize = 'cover';
             placeholder.style.backgroundPosition = 'center';
-            placeholder.textContent = '';
         }
     }
 }
@@ -332,6 +336,31 @@ window.retryConversion = function (id) {
     processUploadQueue();
 }
 
+window.deleteItem = async function(id) {
+    const li = document.getElementById(id);
+    if (!li) return;
+
+    // Animate out
+    li.style.opacity = '0';
+    li.style.transform = 'translateX(20px)';
+
+    setTimeout(async () => {
+        li.remove();
+        allFiles.delete(id);
+
+        // Call server to delete files
+        try {
+            await fetch('/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jobId: id })
+            });
+        } catch (e) {
+            console.error('Delete failed', e);
+        }
+    }, 200);
+}
+
 window.cancelConversion = cancelConversion;
 
 function updateProgress(id, percent) {
@@ -358,6 +387,7 @@ function markCompleted(id, url, compressionRatio) {
         statusEl.className = 'file-status completed';
 
         li.querySelector('.cancel-btn').style.display = 'none';
+        li.querySelector('.delete-btn').style.display = 'inline-flex';
 
         if (!statusEl.querySelector('.download-link')) {
             const link = document.createElement('a');

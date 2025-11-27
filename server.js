@@ -104,13 +104,19 @@ app.post('/upload', upload.single('video'), (req, res) => {
   const thumbnailPath = path.join('output', thumbnailName);
 
   const thumbProc = spawn('ffmpeg', [
+    '-ss', '00:00:00.500',  // Seek BEFORE input for speed (0.5s to avoid black frames)
     '-i', job.inputPath,
-    '-ss', '00:00:01.000',
     '-vframes', '1',
-    '-vf', 'scale=320:-1', // Resize for performance
+    '-vf', 'scale=320:-1',
+    '-q:v', '2',  // Quality (2-5 is good, lower = better)
     '-y',
     thumbnailPath
   ]);
+
+  let thumbError = '';
+  thumbProc.stderr.on('data', (data) => {
+    thumbError += data.toString();
+  });
 
   thumbProc.on('close', (code) => {
       if (code === 0) {
@@ -119,6 +125,9 @@ app.post('/upload', upload.single('video'), (req, res) => {
           if (socketId) {
               io.to(socketId).emit('thumbnail', { id: jobId, url: job.thumbnail });
           }
+          console.log(`Thumbnail generated for ${jobId}`);
+      } else {
+          console.error(`Thumbnail generation failed for ${jobId}:`, thumbError);
       }
   });
 
@@ -314,6 +323,40 @@ app.post('/cancel', express.json(), (req, res) => {
   }
 
   res.status(404).json({ error: 'Процесс не найден' });
+});
+
+app.post('/delete', express.json(), (req, res) => {
+  const { jobId } = req.body;
+  if (!jobId) return res.status(400).json({ error: 'Нет jobId' });
+
+  const job = jobs.get(jobId);
+  if (job) {
+    console.log(`Deleting job ${jobId}`);
+
+    // Remove from jobs map FIRST
+    jobs.delete(jobId);
+
+    // Then delete files asynchronously
+    if (job.url) {
+      const outputPath = path.join(__dirname, job.url);
+      fs.unlink(outputPath, (err) => {
+        if (err) console.error('Error deleting output file:', err);
+        else console.log(`Deleted output file: ${outputPath}`);
+      });
+    }
+
+    if (job.thumbnail) {
+      const thumbPath = path.join(__dirname, job.thumbnail);
+      fs.unlink(thumbPath, (err) => {
+        if (err) console.error('Error deleting thumbnail:', err);
+        else console.log(`Deleted thumbnail: ${thumbPath}`);
+      });
+    }
+
+    return res.json({ status: 'deleted' });
+  }
+
+  res.status(404).json({ error: 'Задание не найдено' });
 });
 
 server.listen(PORT, () => console.log(`http://localhost:${PORT}`));
