@@ -39,11 +39,11 @@ async function restoreState() {
                  li.querySelector('.cancel-btn').style.display = 'inline-block';
             } else if (job.status === 'processing') {
                 updateProgress(job.id, job.progress);
-                li.querySelector('.file-status').textContent = 'Конвертация...';
                 li.querySelector('.file-status').className = 'file-status processing';
                 li.querySelector('.cancel-btn').style.display = 'inline-block';
+                fileList.prepend(li); // Move to top
             } else if (job.status === 'completed') {
-                markCompleted(job.id, job.url);
+                markCompleted(job.id, job.url, job.compressionRatio);
             } else if (job.status === 'error') {
                 markError(job.id, job.error);
             } else if (job.status === 'cancelled') {
@@ -66,8 +66,9 @@ socket.on('connect', () => {
 socket.on('status_change', (data) => {
     const li = document.getElementById(data.id);
     if (li && data.status === 'processing') {
-        li.querySelector('.file-status').textContent = 'Конвертация...';
+        li.querySelector('.file-status').textContent = 'Конвертация... 0%';
         li.querySelector('.file-status').className = 'file-status processing';
+        fileList.prepend(li); // Move to top
     }
 });
 
@@ -76,7 +77,7 @@ socket.on('progress', (data) => {
 });
 
 socket.on('complete', (data) => {
-    markCompleted(data.id, data.url);
+    markCompleted(data.id, data.url, data.compressionRatio);
 });
 
 socket.on('error', (data) => {
@@ -166,10 +167,11 @@ async function processUploadQueue() {
     }
 
     // Update UI to uploading
-    li.querySelector('.file-status').textContent = 'Загрузка...';
-    li.querySelector('.file-status').className = 'file-status processing';
+    li.querySelector('.file-status').textContent = 'Загрузка... 0%';
+    li.querySelector('.file-status').className = 'file-status uploading';
     li.querySelector('.cancel-btn').style.display = 'inline-block';
     li.querySelector('.retry-btn').style.display = 'none';
+    li.querySelector('.progress-bar').classList.add('uploading');
 
     const fd = new FormData();
     fd.append('video', currentFile.file);
@@ -180,15 +182,18 @@ async function processUploadQueue() {
 
     xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
-            const percentComplete = (e.loaded / e.total) * 100;
+            const percentComplete = Math.round((e.loaded / e.total) * 100);
             li.querySelector('.progress-bar').style.width = percentComplete + '%';
+            li.querySelector('.file-status').textContent = `Загрузка... ${percentComplete}%`;
         }
     };
 
     xhr.onload = function() {
+        li.querySelector('.progress-bar').classList.remove('uploading');
         if (xhr.status === 200) {
             // Upload complete, now it's queued on server
             li.querySelector('.file-status').textContent = 'В очереди на конвертацию';
+            li.querySelector('.file-status').className = 'file-status pending';
             li.querySelector('.progress-bar').style.width = '0%'; // Reset for conversion progress
 
             uploadQueue.shift();
@@ -209,6 +214,7 @@ async function processUploadQueue() {
     };
 
     xhr.onerror = function() {
+        li.querySelector('.progress-bar').classList.remove('uploading');
         markError(currentFile.id, 'Ошибка сети при загрузке');
         uploadQueue.shift();
         isUploading = false;
@@ -303,10 +309,11 @@ function updateProgress(id, percent) {
     const li = document.getElementById(id);
     if (li) {
         li.querySelector('.progress-bar').style.width = percent + '%';
+        li.querySelector('.file-status').textContent = `Конвертация... ${percent}%`;
     }
 }
 
-function markCompleted(id, url) {
+function markCompleted(id, url, compressionRatio) {
     const li = document.getElementById(id);
     if (li) {
         const progressBar = li.querySelector('.progress-bar');
@@ -314,7 +321,11 @@ function markCompleted(id, url) {
         progressBar.classList.add('completed');
 
         const statusEl = li.querySelector('.file-status');
-        statusEl.textContent = 'Готово';
+        let statusText = 'Готово';
+        if (compressionRatio !== undefined && compressionRatio !== null) {
+            statusText += ` (сжато на ${compressionRatio}%)`;
+        }
+        statusEl.textContent = statusText;
         statusEl.className = 'file-status completed';
 
         li.querySelector('.cancel-btn').style.display = 'none';
@@ -325,6 +336,9 @@ function markCompleted(id, url) {
             link.download = '';
             link.className = 'download-link';
             link.textContent = ' Скачать';
+            link.onclick = () => {
+                li.classList.add('downloaded');
+            };
             statusEl.appendChild(link);
         }
     }

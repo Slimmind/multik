@@ -7,6 +7,9 @@
   /* macOS Red */
   --warning-color: #FF9500;
   /* macOS Orange */
+  /* macOS Orange */
+  --upload-color: #AF52DE;
+  /* macOS Purple */
   --bg-color: #f5f5f7;
   --card-bg: rgba(255, 255, 255, 0.8);
   --glass-border: rgba(255, 255, 255, 0.4);
@@ -112,6 +115,11 @@ h2 {
   box-shadow: var(--shadow-md);
 }
 
+.file-item.downloaded {
+  opacity: 0.6;
+  background: rgba(255, 255, 255, 0.5);
+}
+
 .file-header {
   display: flex;
   justify-content: space-between;
@@ -146,6 +154,11 @@ h2 {
   color: var(--primary-color);
 }
 
+.file-status.uploading {
+  background: rgba(175, 82, 222, 0.1);
+  color: var(--upload-color);
+}
+
 .file-status.completed {
   background: rgba(52, 199, 89, 0.1);
   color: var(--success-color);
@@ -171,6 +184,10 @@ h2 {
   width: 0%;
   transition: width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
   border-radius: 6px;
+}
+
+.progress-bar.uploading {
+  background-color: var(--upload-color);
 }
 
 .progress-bar.completed {
