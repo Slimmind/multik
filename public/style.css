@@ -143,12 +143,21 @@ h2 {
 .thumbnail-placeholder::before {
   content: '';
   position: absolute;
-  width: 40px;
+  width: 50px;
   height: 40px;
-  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='4' y='8' width='32' height='24' rx='2' stroke='%23000000' stroke-opacity='0.2' stroke-width='2' fill='none'/%3E%3Cpath d='M15 18L25 24L15 30V18Z' fill='%23000000' fill-opacity='0.2'/%3E%3C/svg%3E");
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
+  background: linear-gradient(135deg, #7700ff 0%, #c3cfe2 100%);
+  border-radius: var(--radius-sm);
+}
+
+.thumbnail-placeholder::after {
+  content: '';
+  position: absolute;
+  top:50%;
+  left: calc(50% + 15px);
+  border: solid transparent;
+  border-width: 12px 24px;
+  border-left-color: var(--bg-color);
+  transform: translate(-50%, -50%);
 }
 
 .file-info {
