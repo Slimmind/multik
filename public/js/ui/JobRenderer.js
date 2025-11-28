@@ -46,6 +46,11 @@ export class JobRenderer {
   updateStatus(id, status, text) {
     const li = document.getElementById(id);
     if (!li) return;
+
+    // Remove old status classes
+    li.classList.remove('pending', 'uploading', 'processing', 'completed', 'error');
+    li.classList.add(status);
+
     const statusEl = li.querySelector('.file-status');
     statusEl.textContent = text;
     statusEl.className = `file-status ${status}`;
@@ -63,9 +68,17 @@ export class JobRenderer {
     if (!li) return;
     const placeholder = li.querySelector('.thumbnail-placeholder');
     if (placeholder) {
-      placeholder.style.backgroundImage = `url(${url})`;
-      placeholder.style.backgroundSize = 'cover';
-      placeholder.style.backgroundPosition = 'center';
+      const img = new Image();
+      img.onload = () => {
+        placeholder.style.backgroundImage = `url(${url})`;
+        placeholder.style.backgroundSize = 'cover';
+        placeholder.style.backgroundPosition = 'center';
+      };
+      img.onerror = () => {
+        console.warn(`Failed to load thumbnail for job ${id}: ${url}`);
+        // Keep the default placeholder (favicon)
+      };
+      img.src = url;
     }
   }
 
@@ -111,6 +124,7 @@ export class JobRenderer {
 
     li.querySelector('.cancel-btn').style.display = 'none';
     li.querySelector('.retry-btn').style.display = 'inline-block';
+    li.querySelector('.delete-btn').style.display = 'inline-flex';
   }
 
   setUploading(id) {
@@ -120,6 +134,7 @@ export class JobRenderer {
     this.updateStatus(id, 'uploading', 'Загрузка... 0%');
     li.querySelector('.cancel-btn').style.display = 'inline-block';
     li.querySelector('.retry-btn').style.display = 'none';
+    li.querySelector('.delete-btn').style.display = 'none';
     li.querySelector('.progress-bar').classList.add('uploading');
   }
 

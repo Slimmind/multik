@@ -1,14 +1,19 @@
 :root {
-  --primary-color: #007AFF;
+  --transparency: 0.1;
+  --primary-color: rgb(0, 122, 255);
+  --primary-color-transparent: rgba(0, 122, 255, var(--transparency));
   /* macOS Blue */
-  --success-color: #34C759;
+  --success-color: rgb(52, 199, 89);
+  --success-color-transparent: rgba(52, 199, 89, var(--transparency));
   /* macOS Green */
-  --error-color: #FF3B30;
+  --error-color: rgb(255, 59, 48);
+  --error-color-transparent: rgba(255, 59, 48, var(--transparency));
   /* macOS Red */
-  --warning-color: #FF9500;
+  --warning-color: rgb(255, 149, 0);
+  --warning-color-transparent: rgba(255, 149, 0, var(--transparency));
   /* macOS Orange */
-  /* macOS Orange */
-  --upload-color: #AF52DE;
+  --upload-color: rgb(175, 82, 222);
+  --upload-color-transparent: rgba(175, 82, 222, var(--transparency));
   /* macOS Purple */
   --bg-color: #f5f5f7;
   --card-bg: rgba(255, 255, 255, 0.8);
@@ -22,6 +27,16 @@
   --radius-sm: 8px;
 }
 
+body.dark-mode {
+  --bg-color: #1c1c1e;
+  --card-bg: rgba(44, 44, 46, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --text-primary: #f5f5f7;
+  --text-secondary: #aeaeb2;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--bg-color);
@@ -33,6 +48,11 @@ body {
   min-height: 100vh;
   box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body.dark-mode {
+  background-image: radial-gradient(circle at 50% 0%, #2c2c2e 0%, #1c1c1e 100%);
 }
 
 h2 {
@@ -42,6 +62,45 @@ h2 {
   margin-bottom: 30px;
   letter-spacing: -0.02em;
   color: var(--text-primary);
+  margin: 0;
+}
+
+.header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  margin-bottom: 30px;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.theme-toggle {
+  position: absolute;
+  right: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+
+.theme-toggle:hover {
+  transform: scale(1.05);
+  background: rgba(128, 128, 128, 0.1);
+}
+
+body.dark-mode .theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Main Container (optional wrapper if we had one, but applying to elements directly) */
@@ -100,7 +159,8 @@ h2 {
   background: var(--card-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-width: 1px;
+  border-style: solid;
   border-radius: var(--radius-md);
   padding: 16px;
   margin-bottom: 16px;
@@ -110,6 +170,31 @@ h2 {
 
 .file-item:hover {
   box-shadow: var(--shadow-md);
+}
+
+.file-item.pending {
+  background-color: var(--warning-color-transparent);
+ border-color: var(--warning-color-transparent);
+}
+
+.file-item.uploading {
+  background-color: var(--upload-color-transparent);
+ border-color: var(--upload-color-transparent);
+}
+
+.file-item.processing {
+  background-color: var(--primary-color-transparent);
+  border-color: var(--primary-color-transparent);
+}
+
+.file-item.completed {
+  background-color: var(--success-color-transparent);
+ border-color: var(--success-color-transparent);
+}
+
+.file-item.error {
+  background-color: var(--error-color-transparent);
+  border-color: var(--error-color-transparent);
 }
 
 .file-item.downloaded {
@@ -138,26 +223,14 @@ h2 {
   align-items: center;
   justify-content: center;
   position: relative;
+  background-image: url('/favicon.svg'), linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  background-size: 40px, cover;
 }
 
-.thumbnail-placeholder::before {
-  content: '';
-  position: absolute;
-  width: 50px;
-  height: 40px;
-  background: linear-gradient(135deg, #7700ff 0%, #c3cfe2 100%);
-  border-radius: var(--radius-sm);
-}
-
-.thumbnail-placeholder::after {
-  content: '';
-  position: absolute;
-  top:50%;
-  left: calc(50% + 15px);
-  border: solid transparent;
-  border-width: 12px 24px;
-  border-left-color: var(--bg-color);
-  transform: translate(-50%, -50%);
+body.dark-mode .thumbnail-placeholder {
+  background-image: url('/favicon.svg'), linear-gradient(135deg, #2c2c2e 0%, #48484a 100%);
 }
 
 .file-info {
@@ -332,4 +405,63 @@ button {
 
 .delete-btn:active {
   transform: scale(0.95);
+}
+
+@media (max-width: 600px) {
+  body {
+    padding: 20px 16px;
+  }
+
+  h2 {
+    font-size: 24px;
+  }
+
+  .header {
+    margin-bottom: 20px;
+  }
+
+  #dropZone {
+    padding: 40px 20px;
+    margin-bottom: 20px;
+  }
+
+  .file-item {
+    padding: 12px;
+    position: relative;
+  }
+
+  .file-thumbnail {
+    width: 80px;
+    height: 45px;
+  }
+
+  .file-content {
+    gap: 12px;
+  }
+
+  .file-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding-right: 30px; /* Space for delete button */
+  }
+
+  .file-header span:first-child {
+    width: 100%;
+  }
+
+  .file-status {
+    font-size: 11px;
+    padding: 2px 8px;
+    align-self: flex-start;
+  }
+
+  .delete-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    opacity: 1; /* Always show on mobile since no hover */
+    width: 28px;
+    height: 28px;
+  }
 }

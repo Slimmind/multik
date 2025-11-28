@@ -10,11 +10,15 @@ class FFmpegService {
 
   generateThumbnail(job, callback) {
     const thumbnailName = `thumb-${job.id}.jpg`;
-    const thumbnailPath = path.join('output', thumbnailName);
+    const outputDir = path.resolve('output');
+    const thumbnailPath = path.join(outputDir, thumbnailName);
+    const inputPath = path.resolve(job.inputPath);
+
+    console.log(`Generating thumbnail. Input: ${inputPath}, Output: ${thumbnailPath}`);
 
     const thumbProc = spawn('ffmpeg', [
       '-ss', '00:00:00.500',
-      '-i', job.inputPath,
+      '-i', inputPath,
       '-vframes', '1',
       '-vf', 'scale=320:-1',
       '-q:v', '2',
@@ -29,9 +33,16 @@ class FFmpegService {
 
     thumbProc.on('close', (code) => {
       if (code === 0) {
-        const url = `/output/${thumbnailName}`;
-        callback(null, url);
+        // Verify file exists
+        if (fs.existsSync(thumbnailPath)) {
+            const url = `/output/${thumbnailName}`;
+            callback(null, url);
+        } else {
+            console.error('Thumbnail file not found after successful ffmpeg exit');
+            callback(new Error('Thumbnail file creation failed'));
+        }
       } else {
+        console.error(`Thumbnail generation failed with code ${code}: ${thumbError}`);
         callback(new Error(thumbError));
       }
     });
@@ -64,6 +75,14 @@ class FFmpegService {
     const MAX_LOG_LINES = 50;
 
     ffmpeg.stderr.on('data', (data) => {
+      if (job.status === 'cancelled') {
+        if (!ffmpeg.killed) {
+            console.log(`FFmpegService: Job ${job.id} is cancelled. Killing process ${ffmpeg.pid}`);
+            ffmpeg.kill('SIGKILL');
+        }
+        return;
+      }
+
       buffer += data.toString();
 
       while (true) {
