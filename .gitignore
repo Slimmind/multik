@@ -17,6 +17,7 @@ pids
 # Directory for web assets
 /public/uploads/
 /public/output/
+/public/thumbnails/
 
 # Logs
 logs
@@ -103,5 +104,7 @@ dist
 
 # DVC
 .dvc
+
+.DS_Store
 
 # End of .gitignore
