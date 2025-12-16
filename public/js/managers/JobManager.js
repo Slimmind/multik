@@ -53,6 +53,7 @@ export class JobManager {
           id: job.id,
           file: { name: job.filename },
           status: job.status,
+          mode: job.mode || 'video',
           restored: true
         };
         this.allFiles.set(job.id, fileObj);
@@ -84,10 +85,10 @@ export class JobManager {
     }
   }
 
-  addFiles(files) {
+  addFiles(files, mode) {
     const newFiles = Array.from(files).map(file => {
       const id = 'job-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-      return { id, file, status: 'pending', size: file.size };
+      return { id, file, status: 'pending', size: file.size, mode };
     });
 
     newFiles.sort((a, b) => a.size - b.size);
@@ -119,6 +120,7 @@ export class JobManager {
     const xhr = this.api.uploadFile(
       currentFile.file,
       currentFile.id,
+      currentFile.mode,
       (percent) => this.renderer.updateUploadProgress(currentFile.id, percent),
       () => {
         this.renderer.updateStatus(currentFile.id, 'pending', 'В очереди на конвертацию');
@@ -165,7 +167,7 @@ export class JobManager {
     document.querySelector(`#${id} .cancel-btn`).style.display = 'none';
 
     if (fileObj && !fileObj.restored) {
-        document.querySelector(`#${id} .retry-btn`).style.display = 'inline-block';
+      document.querySelector(`#${id} .retry-btn`).style.display = 'inline-block';
     }
     document.querySelector(`#${id} .delete-btn`).style.display = 'inline-flex';
     document.querySelector(`#${id} .progress-bar`).style.width = '0%';

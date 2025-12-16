@@ -35,11 +35,11 @@ class FFmpegService {
       if (code === 0) {
         // Verify file exists
         if (fs.existsSync(thumbnailPath)) {
-            const url = `/output/${thumbnailName}`;
-            callback(null, url);
+          const url = `/output/${thumbnailName}`;
+          callback(null, url);
         } else {
-            console.error('Thumbnail file not found after successful ffmpeg exit');
-            callback(new Error('Thumbnail file creation failed'));
+          console.error('Thumbnail file not found after successful ffmpeg exit');
+          callback(new Error('Thumbnail file creation failed'));
         }
       } else {
         console.error(`Thumbnail generation failed with code ${code}: ${thumbError}`);
@@ -50,21 +50,32 @@ class FFmpegService {
 
   convert(job, onProgress, onComplete, onError) {
     const originalName = path.parse(job.filename).name;
-    const outputFile = path.join('output', `${originalName}.mp4`);
+    const extension = job.mode === 'audio' ? '.mp3' : '.mp4';
+    const outputFile = path.join('output', `${originalName}${extension}`);
 
     console.log(`Starting conversion for job ${job.id}, file: ${job.inputPath}`);
 
-    const ffmpeg = spawn('ffmpeg', [
-      '-threads', '2',
-      '-i', job.inputPath,
-      '-c:v', 'libx264',
-      '-preset', 'fast',
-      '-threads', '2',
-      '-x264-params', 'threads=2',
-      '-c:a', 'aac',
-      '-y',
-      outputFile
-    ]);
+    const ffmpegArgs = ['-threads', '2', '-i', job.inputPath];
+
+    if (job.mode === 'audio') {
+      ffmpegArgs.push(
+        '-vn',
+        '-c:a', 'libmp3lame',
+        '-q:a', '2'
+      );
+    } else {
+      ffmpegArgs.push(
+        '-c:v', 'libx264',
+        '-preset', 'fast',
+        '-threads', '2',
+        '-x264-params', 'threads=2',
+        '-c:a', 'aac'
+      );
+    }
+
+    ffmpegArgs.push('-y', outputFile);
+
+    const ffmpeg = spawn('ffmpeg', ffmpegArgs);
 
     job.process = ffmpeg;
 
@@ -77,8 +88,8 @@ class FFmpegService {
     ffmpeg.stderr.on('data', (data) => {
       if (job.status === 'cancelled') {
         if (!ffmpeg.killed) {
-            console.log(`FFmpegService: Job ${job.id} is cancelled. Killing process ${ffmpeg.pid}`);
-            ffmpeg.kill('SIGKILL');
+          console.log(`FFmpegService: Job ${job.id} is cancelled. Killing process ${ffmpeg.pid}`);
+          ffmpeg.kill('SIGKILL');
         }
         return;
       }
@@ -142,18 +153,24 @@ class FFmpegService {
 
     ffmpeg.on('close', (code, signal) => {
       job.process = null;
-      fs.unlink(job.inputPath, () => {});
+      fs.unlink(job.inputPath, () => { });
 
       if (signal === 'SIGKILL' || signal === 'SIGTERM') {
-        fs.unlink(outputFile, () => {});
+        fs.unlink(outputFile, () => { });
         onError('cancelled');
       } else if (code === 0) {
         const url = `/output/${path.basename(outputFile)}`;
         let ratio = 0;
         try {
-          const newSize = fs.statSync(outputFile).size;
-          if (job.originalSize > 0) {
-            ratio = Math.round((1 - newSize / job.originalSize) * 100);
+          // Calculate ratio only for video mode, or if it makes sense. 
+          // For audio extraction, the size difference is due to format change, not "compression" in the same sense.
+          if (job.mode !== 'audio') {
+            const newSize = fs.statSync(outputFile).size;
+            if (job.originalSize > 0) {
+              ratio = Math.round((1 - newSize / job.originalSize) * 100);
+            }
+          } else {
+            ratio = null; // Signal no ratio
           }
         } catch (e) {
           console.error('Error calculating ratio:', e);

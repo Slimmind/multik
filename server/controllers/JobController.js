@@ -16,8 +16,10 @@ class JobController {
       progress: job.progress,
       url: job.url,
       error: job.error,
+      error: job.error,
       compressionRatio: job.compressionRatio,
-      thumbnail: job.thumbnail
+      thumbnail: job.thumbnail,
+      mode: job.mode || 'video'
     }));
     res.json(userJobs);
   }
@@ -27,10 +29,11 @@ class JobController {
 
     const clientId = req.body.clientId;
     const jobId = req.body.jobId;
+    const mode = req.body.mode || 'video';
 
     if (!clientId || !jobId) return res.status(400).json({ error: 'Нет clientId или jobId' });
 
-    const job = jobService.createJob(jobId, clientId, req.file);
+    const job = jobService.createJob(jobId, clientId, req.file, mode);
     res.json({ status: 'queued' });
 
     // Generate thumbnail asynchronously
@@ -59,8 +62,8 @@ class JobController {
     // If queueService didn't find it or couldn't cancel, check if it exists at all
     const job = jobService.getJob(jobId);
     if (job) {
-       // If it exists but wasn't cancellable by queueService (e.g. completed or error), just return status
-       return res.json({ status: job.status });
+      // If it exists but wasn't cancellable by queueService (e.g. completed or error), just return status
+      return res.json({ status: job.status });
     }
 
     res.status(404).json({ error: 'Процесс не найден' });

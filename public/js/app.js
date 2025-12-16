@@ -18,8 +18,8 @@ class App {
     this.themeManager = new ThemeManager();
     this.jobManager = new JobManager(this.api, this.socket);
 
-    this.uploadManager = new UploadManager((files) => {
-      this.jobManager.addFiles(files);
+    this.uploadManager = new UploadManager((files, mode) => {
+      this.jobManager.addFiles(files, mode);
     });
 
     this.init();
