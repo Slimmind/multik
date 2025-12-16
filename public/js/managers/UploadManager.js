@@ -3,6 +3,7 @@ export class UploadManager {
     this.dropZone = document.getElementById('dropZone');
     this.fileInput = document.getElementById('fileInput');
     this.onFilesSelected = onFilesSelected;
+    this.mode = 'video';
     this.init();
   }
 
@@ -26,11 +27,19 @@ export class UploadManager {
       this.handleFiles(e.target.files);
       this.fileInput.value = '';
     });
+
+    // Mode handling
+    document.querySelectorAll('input[name="mode"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        this.mode = e.target.value;
+      });
+    });
   }
 
   handleFiles(files) {
     if (files.length > 0) {
-      this.onFilesSelected(files);
+      this.mode = document.querySelector('input[name="mode"]:checked').value;
+      this.onFilesSelected(files, this.mode);
     }
   }
 }

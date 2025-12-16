@@ -15,7 +15,10 @@ export class JobRenderer {
           </div>
           <div class="file-info">
             <div class="file-header">
-              <span>${fileObj.file.name}</span>
+              <span>
+                ${fileObj.mode === 'audio' ? '🎵' : '🎬'} 
+                ${fileObj.file.name}
+              </span>
               <span class="file-status pending">Ожидание загрузки...</span>
               <button class="delete-btn" style="display:none;" title="Удалить">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -56,11 +59,16 @@ export class JobRenderer {
     statusEl.className = `file-status ${status}`;
   }
 
-  updateProgress(id, percent) {
+  updateProgress(id, percent, mode) {
     const li = document.getElementById(id);
     if (!li) return;
     li.querySelector('.progress-bar').style.width = percent + '%';
-    this.updateStatus(id, 'processing', `Конвертация... ${percent}%`);
+    
+    const statusText = mode === 'audio' 
+      ? `Экстракция аудио... ${percent}%` 
+      : `Конвертация... ${percent}%`;
+      
+    this.updateStatus(id, 'processing', statusText);
   }
 
   setThumbnail(id, url) {

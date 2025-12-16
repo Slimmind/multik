@@ -24,11 +24,12 @@ export class ApiService {
     });
   }
 
-  uploadFile(file, jobId, onProgress, onSuccess, onError) {
+  uploadFile(file, jobId, mode, onProgress, onSuccess, onError) {
     const fd = new FormData();
     fd.append('video', file);
     fd.append('clientId', this.clientId);
     fd.append('jobId', jobId);
+    fd.append('mode', mode);
 
     const xhr = new XMLHttpRequest();
 
@@ -39,7 +40,7 @@ export class ApiService {
       }
     };
 
-    xhr.onload = function() {
+    xhr.onload = function () {
       if (xhr.status === 200) {
         onSuccess();
       } else {
@@ -47,12 +48,12 @@ export class ApiService {
         try {
           const resp = JSON.parse(xhr.responseText);
           if (resp.error) errorMsg = resp.error;
-        } catch(e) {}
+        } catch (e) { }
         onError(errorMsg);
       }
     };
 
-    xhr.onerror = function() {
+    xhr.onerror = function () {
       onError('Ошибка сети при загрузке');
     };
 

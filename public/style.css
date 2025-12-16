@@ -1,5 +1,5 @@
 :root {
-  --transparency: 0.1;
+  --transparency: 0.3;
   --primary-color: rgb(0, 122, 255);
   --primary-color-transparent: rgba(0, 122, 255, var(--transparency));
   /* macOS Blue */
@@ -14,6 +14,10 @@
   /* macOS Orange */
   --upload-color: rgb(175, 82, 222);
   --upload-color-transparent: rgba(175, 82, 222, var(--transparency));
+  --black-color: rgb(0, 0, 0);
+  --black-color-transparent: rgba(0, 0, 0, var(--transparency));
+  --white-color: rgb(255, 255, 255);
+  --white-color-transparent: rgba(255, 255, 255, var(--transparency));
   /* macOS Purple */
   --bg-color: #f5f5f7;
   --card-bg: rgba(255, 255, 255, 0.8);
@@ -105,6 +109,45 @@ body.dark-mode .theme-toggle:hover {
 
 /* Main Container (optional wrapper if we had one, but applying to elements directly) */
 
+/* Segmented Control */
+.segmented-control {
+  display: flex;
+  margin: 0 auto 30px auto;
+  background: rgba(118, 118, 128, 0.12);
+  border-radius: var(--radius-lg);
+  padding: 3px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.segmented-control input {
+  display: none;
+}
+
+.segmented-control label {
+  flex: 1;
+  text-align: center;
+  padding: 4px 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-lg);
+  /* Slightly less than container */
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  color: var(--text-primary);
+  user-select: none;
+}
+
+.segmented-control input:checked+label {
+  background: var(--primary-color);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 3px 1px rgba(0, 0, 0, 0.04);
+  color: white;
+}
+
+.segmented-control input:not(:checked)+label:hover {
+  background: rgba(128, 128, 128, 0.08);
+}
+
 /* Drop Zone */
 #dropZone {
   background: var(--card-bg);
@@ -174,12 +217,12 @@ body.dark-mode .theme-toggle:hover {
 
 .file-item.pending {
   background-color: var(--warning-color-transparent);
- border-color: var(--warning-color-transparent);
+  border-color: var(--warning-color-transparent);
 }
 
 .file-item.uploading {
   background-color: var(--upload-color-transparent);
- border-color: var(--upload-color-transparent);
+  border-color: var(--upload-color-transparent);
 }
 
 .file-item.processing {
@@ -189,7 +232,7 @@ body.dark-mode .theme-toggle:hover {
 
 .file-item.completed {
   background-color: var(--success-color-transparent);
- border-color: var(--success-color-transparent);
+  border-color: var(--success-color-transparent);
 }
 
 .file-item.error {
@@ -198,8 +241,7 @@ body.dark-mode .theme-toggle:hover {
 }
 
 .file-item.downloaded {
-  opacity: 0.6;
-  background: rgba(255, 255, 255, 0.5);
+  opacity: 0.5;
 }
 
 .file-content {
@@ -262,6 +304,7 @@ body.dark-mode .thumbnail-placeholder {
   font-size: 13px;
   font-weight: 500;
   padding: 4px 10px;
+  border: 1px solid transparent;
   border-radius: 20px;
   background: rgba(0, 0, 0, 0.05);
   color: var(--text-secondary);
@@ -270,26 +313,31 @@ body.dark-mode .thumbnail-placeholder {
 
 .file-status.pending {
   background: rgba(255, 149, 0, 0.1);
+  border-color: var(--warning-color-transparent);
   color: var(--warning-color);
 }
 
 .file-status.processing {
   background: rgba(0, 122, 255, 0.1);
+  border-color: var(--primary-color-transparent);
   color: var(--primary-color);
 }
 
 .file-status.uploading {
   background: rgba(175, 82, 222, 0.1);
+  border-color: var(--upload-color-transparent);
   color: var(--upload-color);
 }
 
 .file-status.completed {
   background: rgba(52, 199, 89, 0.1);
+  border-color: var(--success-color-transparent);
   color: var(--success-color);
 }
 
 .file-status.error {
   background: rgba(255, 59, 48, 0.1);
+  border-color: var(--error-color-transparent);
   color: var(--error-color);
 }
 
@@ -330,7 +378,7 @@ body.dark-mode .thumbnail-placeholder {
 }
 
 button {
-  border: none;
+  border: 1px solid var(--white-color-transparent);
   padding: 6px 14px;
   border-radius: 16px;
   font-size: 13px;
@@ -443,7 +491,8 @@ button {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
-    padding-right: 30px; /* Space for delete button */
+    padding-right: 30px;
+    /* Space for delete button */
   }
 
   .file-header span:first-child {
@@ -460,7 +509,8 @@ button {
     position: absolute;
     top: 12px;
     right: 12px;
-    opacity: 1; /* Always show on mobile since no hover */
+    opacity: 1;
+    /* Always show on mobile since no hover */
     width: 28px;
     height: 28px;
   }

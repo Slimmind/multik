@@ -174,12 +174,12 @@ body.dark-mode .theme-toggle:hover {
 
 .file-item.pending {
   background-color: var(--warning-color-transparent);
- border-color: var(--warning-color-transparent);
+  border-color: var(--warning-color-transparent);
 }
 
 .file-item.uploading {
   background-color: var(--upload-color-transparent);
- border-color: var(--upload-color-transparent);
+  border-color: var(--upload-color-transparent);
 }
 
 .file-item.processing {
@@ -189,7 +189,7 @@ body.dark-mode .theme-toggle:hover {
 
 .file-item.completed {
   background-color: var(--success-color-transparent);
- border-color: var(--success-color-transparent);
+  border-color: var(--success-color-transparent);
 }
 
 .file-item.error {
@@ -198,7 +198,7 @@ body.dark-mode .theme-toggle:hover {
 }
 
 .file-item.downloaded {
-  opacity: 0.6;
+  /* opacity: 0.6; */
   background: rgba(255, 255, 255, 0.5);
 }
 
@@ -378,7 +378,7 @@ button {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background-color: rgba(255, 59, 48, 0.15);
+  background-color: rgba(255, 59, 48, 0.5);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   color: var(--error-color);
@@ -390,7 +390,7 @@ button {
   opacity: 0;
   transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
   flex-shrink: 0;
-  border: 1px solid rgba(255, 59, 48, 0.2);
+  border: 1px solid rgba(255, 59, 48, 0.5);
 }
 
 .file-item:hover .delete-btn {
@@ -443,7 +443,8 @@ button {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
-    padding-right: 30px; /* Space for delete button */
+    padding-right: 30px;
+    /* Space for delete button */
   }
 
   .file-header span:first-child {
@@ -460,7 +461,8 @@ button {
     position: absolute;
     top: 12px;
     right: 12px;
-    opacity: 1; /* Always show on mobile since no hover */
+    opacity: 1;
+    /* Always show on mobile since no hover */
     width: 28px;
     height: 28px;
   }
