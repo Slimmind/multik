@@ -4,6 +4,11 @@ export class UploadManager {
     this.fileInput = document.getElementById('fileInput');
     this.onFilesSelected = onFilesSelected;
     this.mode = 'video';
+    this.tabContents = {
+      video: document.getElementById('tab-video'),
+      audio: document.getElementById('tab-audio'),
+      transcription: document.getElementById('tab-transcription')
+    };
     this.init();
   }
 
@@ -28,11 +33,20 @@ export class UploadManager {
       this.fileInput.value = '';
     });
 
-    // Mode handling
+    // Mode/Tab handling
     document.querySelectorAll('input[name="mode"]').forEach(radio => {
       radio.addEventListener('change', (e) => {
         this.mode = e.target.value;
+        this.switchTab(this.mode);
       });
+    });
+  }
+
+  switchTab(mode) {
+    Object.entries(this.tabContents).forEach(([key, element]) => {
+      if (element) {
+        element.style.display = key === mode ? 'block' : 'none';
+      }
     });
   }
 

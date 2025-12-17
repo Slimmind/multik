@@ -32,6 +32,16 @@ const JobItem = memo(({ job, onCancel, onRetry, onDelete }: JobItemProps) => {
         <div className="file-info">
           <div className="file-header">
             <span title={job.filename}>{job.filename}</span>
+            {showDeleteButton && (
+              <button
+                className="delete-btn"
+                onClick={() => onDelete(job.id)}
+                title="Удалить"
+                aria-label="Удалить задачу"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
             <span className={`file-status ${job.status}`}>
               {statusText}
               {job.status === 'completed' && job.url && (
@@ -45,16 +55,6 @@ const JobItem = memo(({ job, onCancel, onRetry, onDelete }: JobItemProps) => {
                 </a>
               )}
             </span>
-            {showDeleteButton && (
-              <button
-                className="delete-btn"
-                onClick={() => onDelete(job.id)}
-                title="Удалить"
-                aria-label="Удалить задачу"
-              >
-                <Trash2 size={14} />
-              </button>
-            )}
           </div>
 
           <ProgressBar progress={job.progress} status={job.status} />

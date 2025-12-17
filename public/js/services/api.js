@@ -24,6 +24,19 @@ export class ApiService {
     });
   }
 
+  async startTranscription(jobId, audioUrl) {
+    const res = await fetch('/transcribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobId,
+        audioUrl,
+        clientId: this.clientId
+      })
+    });
+    return await res.json();
+  }
+
   uploadFile(file, jobId, mode, onProgress, onSuccess, onError) {
     const fd = new FormData();
     fd.append('video', file);

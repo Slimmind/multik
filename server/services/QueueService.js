@@ -1,5 +1,6 @@
 const jobService = require('./JobService');
 const ffmpegService = require('./FFmpegService');
+const transcriptionService = require('./TranscriptionService');
 const socketHandler = require('../socket/SocketHandler');
 
 const fs = require('fs');
@@ -29,6 +30,8 @@ class QueueService {
       job.status = 'cancelled';
 
       if (job.process) {
+        // Handle child process (ffmpeg or node)
+        // Check if it's a child_process object (spawn) which has .pid
         console.log(`QueueService: Killing process ${job.process.pid}`);
         try {
           process.kill(job.process.pid, 'SIGKILL');
@@ -36,8 +39,7 @@ class QueueService {
           console.error(`QueueService: Failed to kill process ${job.process.pid}:`, e);
         }
       }
-      // The FFmpegService close handler will eventually be called,
-      // which will call onError('cancelled'), which cleans up isConverting.
+      // The Service close handler will eventually be called
       return true;
     } else if (job.status === 'queued') {
       job.status = 'cancelled';
@@ -56,14 +58,13 @@ class QueueService {
 
     socketHandler.emitToClient(job.clientId, 'status_change', { id: job.id, status: 'processing' });
 
-    ffmpegService.convert(
-      job,
-      (progress) => {
+    const onProgress = (progress) => {
         if (job.status === 'cancelled') return;
         job.progress = progress;
         socketHandler.emitToClient(job.clientId, 'progress', { id: job.id, progress });
-      },
-      (url, ratio) => {
+    };
+
+    const onComplete = (url, ratio) => {
         if (job.status === 'cancelled') {
            this.isConverting = false;
            this.processQueue();
@@ -74,23 +75,29 @@ class QueueService {
         job.progress = 100;
         job.url = url;
         job.compressionRatio = ratio;
-        console.log(`Conversion completed. Ratio: ${ratio}%`);
+        console.log(`Job completed. Ratio: ${ratio}%`);
         socketHandler.emitToClient(job.clientId, 'complete', { id: job.id, url, compressionRatio: ratio });
         this.processQueue();
-      },
-      (errorType, message) => {
+    };
+
+    const onError = (errorType, message) => {
         this.isConverting = false;
         if (errorType === 'cancelled' || job.status === 'cancelled') {
           job.status = 'cancelled';
-          console.log('Conversion cancelled');
+          console.log('Job cancelled');
         } else {
           job.status = 'error';
-          job.error = 'Конвертация не удалась';
-          socketHandler.emitToClient(job.clientId, 'error', { id: job.id, message: 'Конвертация не удалась' });
+          job.error = 'Обработка не удалась';
+          socketHandler.emitToClient(job.clientId, 'error', { id: job.id, message: 'Обработка не удалась' });
         }
         this.processQueue();
-      }
-    );
+    };
+
+    if (job.mode === 'transcription') {
+        transcriptionService.transcribe(job, onProgress, onComplete, onError);
+    } else {
+        ffmpegService.convert(job, onProgress, onComplete, onError);
+    }
   }
 }
 

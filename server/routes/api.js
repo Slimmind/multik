@@ -21,5 +21,9 @@ router.get('/jobs/:clientId', jobController.getJobs);
 router.post('/upload', upload.single('video'), jobController.upload);
 router.post('/cancel', express.json(), jobController.cancel);
 router.post('/delete', express.json(), jobController.delete);
+router.post('/transcribe', express.json(), jobController.transcribe);
+
+// AI Text Correction using Google Gemini
+router.post('/correct', express.json(), jobController.correctText);
 
 module.exports = router;
