@@ -18,7 +18,15 @@ const upload = multer({ storage: storage });
 
 // Routes
 router.get('/jobs/:clientId', jobController.getJobs);
-router.post('/upload', upload.single('video'), jobController.upload);
+router.post('/upload', (req, res, next) => {
+  upload.single('video')(req, res, (err) => {
+    if (err) {
+      console.error('Multer error:', err);
+      return res.status(500).json({ error: 'Multer error', details: err.message });
+    }
+    next();
+  });
+}, jobController.upload);
 router.post('/cancel', express.json(), jobController.cancel);
 router.post('/delete', express.json(), jobController.delete);
 router.post('/transcribe', express.json(), jobController.transcribe);

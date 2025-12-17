@@ -25,29 +25,39 @@ class JobController {
   }
 
   upload(req, res) {
-    if (!req.file) return res.status(400).json({ error: 'Нет файла' });
+    try {
+        if (!req.file) return res.status(400).json({ error: 'Нет файла' });
 
-    const clientId = req.body.clientId;
-    const jobId = req.body.jobId;
-    const mode = req.body.mode || 'video';
+        const clientId = req.body.clientId;
+        const jobId = req.body.jobId;
+        const mode = req.body.mode || 'video';
 
-    if (!clientId || !jobId) return res.status(400).json({ error: 'Нет clientId или jobId' });
+        if (!clientId || !jobId) return res.status(400).json({ error: 'Нет clientId или jobId' });
 
-    const job = jobService.createJob(jobId, clientId, req.file, mode);
-    res.json({ status: 'queued' });
+        const job = jobService.createJob(jobId, clientId, req.file, mode);
+        res.json({ status: 'queued' });
 
-    // Generate thumbnail asynchronously
-    ffmpegService.generateThumbnail(job, (err, url) => {
-      if (!err) {
-        job.thumbnail = url;
-        socketHandler.emitToClient(clientId, 'thumbnail', { id: jobId, url });
-        console.log(`Thumbnail generated for ${jobId}`);
-      } else {
-        console.error(`Thumbnail generation failed for ${jobId}:`, err);
-      }
-    });
+        // Generate thumbnail asynchronously only for video
+        if (mode === 'video') {
+          ffmpegService.generateThumbnail(job, (err, url) => {
+            if (!err) {
+              job.thumbnail = url;
+              socketHandler.emitToClient(clientId, 'thumbnail', { id: jobId, url });
+              console.log(`Thumbnail generated for ${jobId}`);
+            } else {
+              console.error(`Thumbnail generation failed for ${jobId}:`, err);
+            }
+          });
+        }
 
-    queueService.processQueue();
+        queueService.processQueue();
+    } catch (e) {
+        console.error('Upload error:', e);
+        // If headers not sent
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Internal Server Error during upload', details: e.message });
+        }
+    }
   }
 
   cancel(req, res) {
@@ -137,7 +147,7 @@ class JobController {
       return res.status(400).json({ error: 'Нет текста для обработки' });
     }
 
-    const apiKey = process.env.MULTIK_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return res.status(500).json({ error: 'API ключ не настроен' });
     }

@@ -3,61 +3,114 @@ const path = require('path');
 const fs = require('fs');
 
 class TranscriptionService {
-  transcribe(job, onProgress, onComplete, onError) {
+  transcribe(job, onProgress, onComplete, onError, onStatus) {
     const originalName = path.parse(job.filename).name;
     const outputFile = path.join('output', `${originalName}.txt`);
-    const scriptPath = path.resolve('server/scripts/transcribe.mjs');
+    const scriptPath = path.resolve('server/scripts/transcribe.py'); // Moved to scripts folder
 
     console.log(`Starting transcription for job ${job.id}, file: ${job.inputPath}`);
 
-    // Since transcribe.mjs saves .txt in the SAME directory as input,
-    // we need to know where it will be saved.
-    // transcribe.mjs logic: audio_file.with_suffix(".txt")
-    // inputPath is usually 'uploads/filename.ext'.
-    // So output will be 'uploads/filename.txt'.
-    // We want to move it to 'output/' folder to match FFmpegService behavior.
+    // Python script saves .txt output next to the input file by default.
 
     const inputDir = path.dirname(path.resolve(job.inputPath));
     const inputExt = path.extname(job.inputPath);
     const inputBase = path.basename(job.inputPath, inputExt);
     const expectedGeneratedFile = path.join(inputDir, `${inputBase}.txt`);
 
-    const nodeCb = spawn('node', [
+    // Spawn python3 process
+    const nodeCb = spawn('python3', [
       scriptPath,
-      '--file', path.resolve(job.inputPath)
+      '--file', path.resolve(job.inputPath),
+      '--lang', 'ru', // Default to Russian for now, or pass from job if available
+      '--output', expectedGeneratedFile // Explicitly tell python where to save
     ]);
 
     job.process = nodeCb;
 
     let stderrLog = [];
 
-    // transcribe.mjs prints to stdout
+    // Progress simulation
+    let progress = 0;
+    let progressInterval = null;
+    let estimatedDuration = 0;
+    let startTime = 0;
+
+    // Processing speed estimation factor (0.2 ~= 5x realtime speed)
+    const PROCESSING_FACTOR = 0.2;
+
+    const startProgressSimulation = (duration) => {
+      if (progressInterval) clearInterval(progressInterval);
+
+      const estimatedProcessingTime = duration * PROCESSING_FACTOR;
+
+      console.log(`[Transcription] Audio duration: ${duration}s. Estimated processing: ${estimatedProcessingTime}s`);
+
+      startTime = Date.now();
+
+      progressInterval = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        const calculatedProgress = (elapsed / estimatedProcessingTime) * 95;
+
+        // Ensure we don't go backwards or exceed 95%
+        if (calculatedProgress > progress && calculatedProgress <= 95) {
+          progress = Math.min(Math.round(calculatedProgress), 95);
+          onProgress(progress);
+        }
+      }, 1000);
+    };
+
+    // parse stdout line by line to ensure we catch [DURATION] even if chunked
+    let stdoutBuffer = '';
     nodeCb.stdout.on('data', (data) => {
-        const str = data.toString();
-        // We could parse logs here if we want to show real progress?
-        // But for "small" model on CPU, it blocks main thread of the child process mostly.
-        // We can just rely on completion.
-        console.log(`[Transcription] ${str.trim()}`);
+        stdoutBuffer += data.toString();
+
+        let lines = stdoutBuffer.split('\n');
+        // Keep the last incomplete line in buffer
+        stdoutBuffer = lines.pop();
+
+        lines.forEach(line => {
+             line = line.trim();
+             if (!line) return;
+
+             console.log(`[Transcription] ${line}`);
+
+             // Check for Duration
+             const durationMatch = line.match(/\[DURATION\]\s+(\d+(\.\d+)?)/);
+             if (durationMatch) {
+                 const duration = parseFloat(durationMatch[1]);
+                 startProgressSimulation(duration);
+             }
+
+             // Check for Status
+             const statusMatch = line.match(/\[STATUS\]\s+(.+)/);
+             if (statusMatch && onStatus) {
+                 const status = statusMatch[1].toLowerCase();
+                 onStatus(status);
+             }
+        });
     });
 
     nodeCb.stderr.on('data', (data) => {
       const str = data.toString();
       stderrLog.push(str);
-      // Transformers.js logs loading info to stderr sometimes or just warnings
-      console.error(`[Transcription Error] ${str.trim()}`);
+
+      // Filter out tqdm progress bars (often contain percentage or iterations/s)
+      if (str.includes('%|') || str.includes('frames/s') || str.includes('it/s')) {
+          // It's just progress info from python, ignore or log as info
+          return;
+      }
+
+      if (str.toLowerCase().includes('warning')) {
+          console.warn(`[Transcription Warning] ${str.trim()}`);
+      } else if (str.toLowerCase().includes('error') || str.toLowerCase().includes('traceback')) {
+          console.error(`[Transcription Error] ${str.trim()}`);
+      } else {
+          console.log(`[Transcription Log] ${str.trim()}`);
+      }
     });
 
-    // Progress simulation
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-        if (progress < 90) {
-            progress += 5;
-            onProgress(progress);
-        }
-    }, 2000);
-
     const cleanup = () => {
-      clearInterval(progressInterval);
+      if (progressInterval) clearInterval(progressInterval);
       job.process = null;
     };
 

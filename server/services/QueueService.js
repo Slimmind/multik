@@ -93,10 +93,31 @@ class QueueService {
         this.processQueue();
     };
 
-    if (job.mode === 'transcription') {
-        transcriptionService.transcribe(job, onProgress, onComplete, onError);
-    } else {
-        ffmpegService.convert(job, onProgress, onComplete, onError);
+    const onStatus = (status) => {
+        if (job.status === 'cancelled') return;
+        // Don't overwrite the main 'processing' status in local state,
+        // just notify client about sub-status change
+        socketHandler.emitToClient(job.clientId, 'status_change', {
+            id: job.id,
+            status: 'processing', // Keep top-level status as processing
+            subStatus: status // e.g. 'preparing'
+        });
+    };
+
+    try {
+        if (job.mode === 'transcription') {
+            transcriptionService.transcribe(job, onProgress, onComplete, onError, onStatus);
+        } else {
+            ffmpegService.convert(job, onProgress, onComplete, onError);
+        }
+    } catch (e) {
+        console.error(`Failed to start job ${job.id}:`, e);
+        // Ensure we don't get stuck
+        this.isConverting = false;
+        job.status = 'error';
+        job.error = 'Сбой запуска';
+        socketHandler.emitToClient(job.clientId, 'error', { id: job.id, message: 'Сбой запуска обработки' });
+        this.processQueue();
     }
   }
 }

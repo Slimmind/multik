@@ -13,9 +13,10 @@ class SocketHandler {
         console.log(`Client connected: ${clientId} -> ${socket.id}`);
       }
 
-      socket.on('disconnect', () => {
+      socket.on('disconnect', (reason) => {
         if (clientId && this.clients.get(clientId) === socket.id) {
           this.clients.delete(clientId);
+          console.log(`Client disconnected: ${clientId} (${reason})`);
         }
       });
     });

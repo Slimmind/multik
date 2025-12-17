@@ -33,16 +33,17 @@ class FFmpegService {
 
     thumbProc.on('close', (code) => {
       if (code === 0) {
-        // Verify file exists
         if (fs.existsSync(thumbnailPath)) {
           const url = `/output/${thumbnailName}`;
+          console.log(`[FFmpeg] Thumbnail generated: ${url}`);
           callback(null, url);
         } else {
-          console.error('Thumbnail file not found after successful ffmpeg exit');
+          console.error(`[FFmpeg] Thumbnail file not found after success exit: ${thumbnailPath}`);
           callback(new Error('Thumbnail file creation failed'));
         }
       } else {
-        console.error(`Thumbnail generation failed with code ${code}: ${thumbError}`);
+        console.error(`[FFmpeg] Thumbnail failed (Code ${code}). Command: ffmpeg -ss 0.5 -i ${inputPath} ...`);
+        console.error(`[FFmpeg] Stderr: ${thumbError}`);
         callback(new Error(thumbError));
       }
     });
@@ -162,7 +163,7 @@ class FFmpegService {
         const url = `/output/${path.basename(outputFile)}`;
         let ratio = 0;
         try {
-          // Calculate ratio only for video mode, or if it makes sense. 
+          // Calculate ratio only for video mode, or if it makes sense.
           // For audio extraction, the size difference is due to format change, not "compression" in the same sense.
           if (job.mode !== 'audio') {
             const newSize = fs.statSync(outputFile).size;

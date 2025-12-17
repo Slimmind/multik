@@ -1,248 +1,80 @@
-# Multik - Видео Конвертер
+# Multik - Multimedia Converter & Transcriber
 
-Современное веб-приложение для конвертации видео с элегантным интерфейсом в стиле macOS.
+Multik is a web-based application for processing multimedia files. It allows users to convert videos to audio, transcribe audio to text, and AI-correct transcritptions. The project has been refactored to use a modern React frontend with Vite, while maintaining a robust Node.js/Express backend.
 
-## 🚀 Технологии
+## Features
 
-### Frontend
-- **React 18** с **TypeScript**
-- **Vite** - быстрая сборка и разработка
-- **Socket.IO Client** - real-time обновления
-- **Lucide React** - иконки
+- **Video to Audio Conversion**: Upload video files and convert them to MP3.
+- **Audio to Text Transcription**: Transcribe audio files using OpenAI Whisper (local execution via Python).
+- **AI Text Correction**: Correct transcription errors using Google Gemini AI.
+- **Real-time Updates**: Progress tracking via Socket.IO.
+- **Modern UI**: Drag-and-drop uploads, dark mode support, and a responsive design built with React.
 
-### Backend
-- **Node.js** с **Express**
-- **Socket.IO** - WebSocket коммуникация
-- **Multer** - загрузка файлов
-- **FFmpeg** - конвертация видео
+## Tech Stack
 
-## 📁 Структура проекта
+- **Frontend**: React, Vite, CSS (MacOS-inspired aesthetics).
+- **Backend**: Node.js, Express, Socket.IO.
+- **Processing**: FFmpeg (video/audio), OpenAI Whisper (transcription).
+- **AI Services**: Google Gemini (text correction).
 
-```
-multik/
-├── client/                 # React приложение
-│   ├── src/
-│   │   ├── components/    # React компоненты
-│   │   │   ├── Header.tsx
-│   │   │   ├── DropZone.tsx
-│   │   │   ├── JobList.tsx
-│   │   │   ├── JobItem.tsx
-│   │   │   ├── JobActions.tsx
-│   │   │   ├── ProgressBar.tsx
-│   │   │   └── Thumbnail.tsx
-│   │   ├── context/       # React Context
-│   │   │   └── JobContext.tsx
-│   │   ├── hooks/         # Custom hooks
-│   │   │   ├── useJobs.ts
-│   │   │   ├── useTheme.ts
-│   │   │   └── useThumbnail.ts
-│   │   ├── services/      # API и Socket сервисы
-│   │   │   ├── api.ts
-│   │   │   └── socket.ts
-│   │   ├── types/         # TypeScript типы
-│   │   │   └── index.ts
-│   │   ├── utils/         # Утилиты
-│   │   │   └── index.ts
-│   │   ├── constants/     # Константы
-│   │   │   └── index.ts
-│   │   ├── App.tsx
-│   │   └── main.tsx
-│   └── package.json
-│
-├── server/                # Node.js сервер
-│   ├── controllers/       # Контроллеры
-│   │   └── JobController.js
-│   ├── routes/            # Маршруты API
-│   │   └── api.js
-│   ├── services/          # Бизнес-логика
-│   │   ├── JobService.js
-│   │   ├── QueueService.js
-│   │   └── FFmpegService.js
-│   └── socket/            # Socket.IO обработчики
-│       └── SocketHandler.js
-│
-├── server.js              # Точка входа сервера
-├── uploads/               # Загруженные файлы
-└── output/                # Конвертированные файлы
-```
+## Prerequisites
 
-## 🛠 Установка
+- **Node.js**: v14+ recommended.
+- **Python**: v3.8+ (for Whisper).
+- **FFmpeg**: Must be installed and available in system PATH.
+- **OpenAI Whisper**: `pip install openai-whisper`
 
-### Требования
-- Node.js >= 18
-- FFmpeg (установлен в системе)
+## Installation
 
-### Установка FFmpeg
+1.  Clone the repository:
+    ```bash
+    git clone https://github.com/slimmind/multik.git
+    cd multik
+    ```
 
-**macOS:**
-```bash
-brew install ffmpeg
-```
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
 
-**Ubuntu/Debian:**
-```bash
-sudo apt update
-sudo apt install ffmpeg
-```
+3.  Set up environment variables:
+    Create a `.env` file in the root directory:
+    ```
+    GEMINI_API_KEY=your_google_gemini_api_key
+    ```
 
-**Windows:**
-Скачайте с [ffmpeg.org](https://ffmpeg.org/download.html)
+## Development
 
-### Установка зависимостей
+To run the application in development mode (with hot-reloading for frontend):
 
-```bash
-# Установка зависимостей сервера
-npm install
+1.  Start the backend server (on port 3000):
+    ```bash
+    npm start
+    ```
 
-# Установка зависимостей клиента
-cd client
-npm install
-```
+2.  Start the Vite frontend dev server (on port 5173):
+    ```bash
+    npm run dev
+    ```
 
-## 🚀 Запуск
+   Open `http://localhost:5173` in your browser.
 
-### Режим разработки
+## Production Build
 
-**Терминал 1 - Backend:**
-```bash
-npm start
-# Сервер запустится на http://localhost:3000
-```
+To build the frontend and serve it via the Node.js backend:
 
-**Терминал 2 - Frontend:**
-```bash
-cd client
-npm run dev
-# Клиент запустится на http://localhost:5173
-```
+1.  Build the React app:
+    ```bash
+    npm run build
+    ```
 
-Откройте браузер и перейдите на `http://localhost:5173`
+2.  Start the server (serves the `dist` folder):
+    ```bash
+    npm start
+    ```
 
-### Production сборка
+   Open `http://localhost:3000` in your browser.
 
-```bash
-# Сборка клиента
-cd client
-npm run build
-
-# Запуск сервера
-cd ..
-npm start
-```
-
-## ✨ Возможности
-
-- 📤 **Drag & Drop загрузка** видео файлов
-- 🎵 **Извлечение аудио** (MP3) из видео файлов
-- 🔄 **Real-time прогресс** конвертации
-- 🎨 **Темная/Светлая тема** с автоопределением системной темы
-- 📱 **Адаптивный дизайн** для мобильных устройств
-- 🖼️ **Автоматическая генерация** миниатюр (для видео)
-- ⚡ **Очередь загрузки** с приоритетом по размеру
-- 💾 **Восстановление состояния** после перезагрузки страницы
-- 📊 **Отображение степени сжатия** файлов
-- ♻️ **Повтор** неудачных конвертаций
-- 🗑️ **Удаление** завершенных задач
-- 🎙️ **Транскрибация аудио** в текст с AI коррекцией
-
-## 🎨 Особенности UI
-
-- Glassmorphism эффекты
-- Плавные анимации и переходы
-- 🎚️ **Переключатель режимов** (Видео/Аудио) в стиле macOS
-- Цветовая индикация статусов:
-  - 🟠 Оранжевый - ожидание
-  - 🟣 Фиолетовый - загрузка
-  - 🔵 Синий - конвертация
-  - 🟢 Зеленый - завершено
-  - 🔴 Красный - ошибка
-- macOS-стиль дизайна
-- 📝 **AI Редактор транскрипции** с возможностью копирования и исправления ошибок
-
-## 🔧 API Endpoints
-
-### GET `/jobs/:clientId`
-Получить список задач клиента
-
-### POST `/upload`
-Загрузить видео файл
-- `video` - файл
-- `clientId` - ID клиента
-- `jobId` - ID задачи
-- `mode` - режим ('video' | 'audio'), по умолчанию 'video'
-
-### POST `/cancel`
-Отменить конвертацию
-- `jobId` - ID задачи
-
-### POST `/delete`
-Удалить задачу
-- `jobId` - ID задачи
-
-### POST `/transcribe`
-Запустить транскрибацию аудио
-- `jobId` - ID задачи
-- `audioUrl` - URL аудио файла
-- `clientId` - ID клиента
-
-### POST `/correct`
-Исправление текста с помощью AI (Gemini)
-- `text` - исходный текст
-
-## 🔌 WebSocket Events
-
-### Client → Server
-- Автоматическое подключение с `clientId`
-
-### Server → Client
-- `status_change` - изменение статуса
-- `progress` - прогресс конвертации
-- `complete` - завершение конвертации
-- `error` - ошибка
-- `thumbnail` - миниатюра готова
-
-## 📝 Архитектурные решения
-
-### Frontend
-- **Component-based architecture** с разделением ответственности
-- **Custom hooks** для переиспользования логики
-- **Context API** для глобального состояния
-- **Memoization** для оптимизации производительности
-- **TypeScript** для типобезопасности
-
-### Backend
-- **MVC pattern** с контроллерами и сервисами
-- **Service layer** для бизнес-логики
-- **Queue management** для последовательной обработки
-- **Socket.IO** для real-time коммуникации
-
-## 🔐 Безопасность
-
-- Валидация файлов на стороне сервера
-- Ограничение типов файлов (только видео)
-- Изоляция клиентских данных
-- Автоматическая очистка временных файлов
-
-## 🐛 Отладка
-
-Логи сервера показывают:
-- Генерацию миниатюр
-- Прогресс конвертации
-- Ошибки FFmpeg
-- Удаление файлов
-
-## 📄 Лицензия
+## License
 
 MIT
-
-## 👨‍💻 Разработка
-
-Проект использует современные практики разработки:
-- ESLint для линтинга
-- Prettier для форматирования (опционально)
-- TypeScript strict mode
-- React best practices
-
----
-
-Сделано с ❤️ для удобной конвертации видео
