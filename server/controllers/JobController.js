@@ -108,6 +108,71 @@ class JobController {
 
     res.status(404).json({ error: 'Задание не найдено' });
   }
+
+  transcribe(req, res) {
+    const { jobId, audioUrl, clientId } = req.body;
+    if (!jobId || !audioUrl || !clientId) {
+      return res.status(400).json({ error: 'Нет jobId, audioUrl или clientId' });
+    }
+
+    // audioUrl is like "/output/filename.mp3"
+    // Convert to file system path
+    const audioPath = path.resolve('.' + audioUrl);
+
+    if (!fs.existsSync(audioPath)) {
+      return res.status(404).json({ error: 'Аудиофайл не найден' });
+    }
+
+    // Create a transcription job using the existing audio file
+    const job = jobService.createJobFromPath(jobId, clientId, audioPath, 'transcription');
+    res.json({ status: 'queued' });
+
+    queueService.processQueue();
+  }
+
+  async correctText(req, res) {
+    const { text } = req.body;
+
+    if (!text) {
+      return res.status(400).json({ error: 'Нет текста для обработки' });
+    }
+
+    const apiKey = process.env.MULTIK_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'API ключ не настроен' });
+    }
+
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: `Исправь орфографические ошибки и ошибки пунктуации в следующем тексте. Верни только исправленный текст без каких-либо пояснений:\n\n${text}`
+              }]
+            }]
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Gemini API error:', errorData);
+        return res.status(500).json({ error: 'Ошибка API' });
+      }
+
+      const data = await response.json();
+      const correctedText = data.candidates?.[0]?.content?.parts?.[0]?.text || text;
+
+      res.json({ correctedText });
+    } catch (e) {
+      console.error('AI correction error:', e);
+      res.status(500).json({ error: 'Ошибка обработки' });
+    }
+  }
 }
 
 module.exports = new JobController();

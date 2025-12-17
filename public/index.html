@@ -32,15 +32,25 @@
     <input type="radio" name="mode" value="video" id="mode-video" checked>
     <label for="mode-video">Конвертация (MP4)</label>
     <input type="radio" name="mode" value="audio" id="mode-audio">
-    <label for="mode-audio">Аудио (MP3)</label>
+    <label for="mode-audio">Извлечение аудио</label>
+    <input type="radio" name="mode" value="transcription" id="mode-transcription">
+    <label for="mode-transcription">Транскрибация</label>
   </div>
 
   <div id="dropZone">
     <p>Перетащите файлы сюда или кликните для выбора</p>
-    <input type="file" id="fileInput" multiple accept="video/*">
+    <input type="file" id="fileInput" multiple accept="video/*,audio/*">
   </div>
 
-  <ul id="fileList"></ul>
+  <div class="tab-content" id="tab-video">
+    <ul id="fileList-video" class="file-list"></ul>
+  </div>
+  <div class="tab-content" id="tab-audio" style="display: none;">
+    <ul id="fileList-audio" class="file-list"></ul>
+  </div>
+  <div class="tab-content" id="tab-transcription" style="display: none;">
+    <ul id="fileList-transcription" class="file-list"></ul>
+  </div>
 
   <script type="module" src="js/app.js"></script>
 </body>
