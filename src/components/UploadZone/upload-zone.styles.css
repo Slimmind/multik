@@ -1,0 +1,48 @@
+/* Drop Zone */
+#dropZone {
+  background: var(--card-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 60px 40px;
+  text-align: center;
+  color: var(--text-secondary);
+  margin: 0 auto 40px;
+  max-width: 700px;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+#dropZone:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(0, 122, 255, 0.3);
+}
+
+#dropZone.dragover {
+  border-color: var(--primary-color);
+  background: rgba(0, 122, 255, 0.05);
+  color: var(--primary-color);
+  transform: scale(1.02);
+}
+
+#dropZone p {
+  font-size: 17px;
+  margin: 0;
+  pointer-events: none;
+}
+
+#fileInput {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  #dropZone {
+    padding: 40px 20px;
+    margin-bottom: 20px;
+  }
+}

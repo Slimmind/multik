@@ -1,12 +1,13 @@
 import React, { useRef, useState, ChangeEvent, DragEvent } from 'react'
-import { JobMode } from '../types'
+import { JobMode } from '../../types'
+import './upload-zone.styles.css'
 
 interface UploadZoneProps {
   onFilesSelected: (files: File[]) => void;
   mode: JobMode;
 }
 
-export default function UploadZone({ onFilesSelected, mode }: UploadZoneProps) {
+export const UploadZone = ({ onFilesSelected, mode }: UploadZoneProps) => {
   const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 

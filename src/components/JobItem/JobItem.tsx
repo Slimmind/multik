@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Job } from '../types'
+import { Job } from '../../types'
+import './job-item.styles.css'
 
 interface JobItemProps {
   job: Job;
@@ -10,7 +11,7 @@ interface JobItemProps {
   onCorrect: (id: string, text: string) => Promise<string | undefined>;
 }
 
-export default function JobItem({ job, onDelete, onCancel, onRetry, onTranscribe, onCorrect }: JobItemProps) {
+export const JobItem = ({ job, onDelete, onCancel, onRetry, onTranscribe, onCorrect }: JobItemProps) => {
   const [transcriptionChecked, setTranscriptionChecked] = useState(false)
   const [isCopying, setIsCopying] = useState(false)
   const [isAiProcessing, setIsAiProcessing] = useState(false)

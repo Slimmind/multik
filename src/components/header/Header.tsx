@@ -1,5 +1,7 @@
-import { IconMoon } from "../icons/icon-moon";
-import { IconSun } from "../icons/icon-sun";
+import { IconMoon } from "../../icons/icon-moon";
+import { IconSun } from "../../icons/icon-sun";
+
+import "./header.styles.css";
 
 interface HeaderProps {
     isDarkTheme: boolean;

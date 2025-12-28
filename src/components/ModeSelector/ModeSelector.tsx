@@ -1,12 +1,13 @@
 import React from 'react'
-import { JobMode } from '../types'
+import { JobMode } from '../../types'
+import './mode-selector.styles.css'
 
 interface ModeSelectorProps {
   mode: JobMode;
   setMode: (mode: JobMode) => void;
 }
 
-export default function ModeSelector({ mode, setMode }: ModeSelectorProps) {
+export const ModeSelector = ({ mode, setMode }: ModeSelectorProps) => {
   return (
     <div className="segmented-control">
       <input

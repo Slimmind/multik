@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import UploadZone from './components/UploadZone'
-import JobList from './components/JobList'
-import ModeSelector from './components/ModeSelector'
-import { Header } from './components/Header'
+import Header from './components/header'
 import useSocket from './hooks/useSocket'
 import useUploadQueue from './hooks/useUploadQueue'
 import useInit from './hooks/useInit'
 import { Job, JobMode } from './types'
+import ModeSelector from "./components/ModeSelector"
+import UploadZone from "./components/UploadZone"
+import JobList from "./components/JobList"
 
 export default function App() {
   const [jobs, setJobs] = useState<Job[]>([])
