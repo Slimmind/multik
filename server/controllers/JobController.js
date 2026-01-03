@@ -1,9 +1,9 @@
-const path = require('path');
-const fs = require('fs');
-const jobService = require('../services/JobService');
-const ffmpegService = require('../services/FFmpegService');
-const queueService = require('../services/QueueService');
-const socketHandler = require('../socket/SocketHandler');
+import path from 'path';
+import fs from 'fs';
+import jobService from '../services/JobService.js';
+import ffmpegService from '../services/FFmpegService.js';
+import queueService from '../services/QueueService.js';
+import socketHandler from '../socket/SocketHandler.js';
 
 class JobController {
 
@@ -185,4 +185,4 @@ class JobController {
   }
 }
 
-module.exports = new JobController();
+export default new JobController();

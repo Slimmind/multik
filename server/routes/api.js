@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const multer = require('multer');
-const jobController = require('../controllers/JobController');
+import multer from 'multer';
+import jobController from '../controllers/JobController.js';
 
 // Multer setup
 const storage = multer.diskStorage({
@@ -34,4 +34,4 @@ router.post('/transcribe', express.json(), jobController.transcribe);
 // AI Text Correction using Google Gemini
 router.post('/correct', express.json(), jobController.correctText);
 
-module.exports = router;
+export default router;

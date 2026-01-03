@@ -1,9 +1,8 @@
-const jobService = require('./JobService');
-const ffmpegService = require('./FFmpegService');
-const transcriptionService = require('./TranscriptionService');
-const socketHandler = require('../socket/SocketHandler');
-
-const fs = require('fs');
+import jobService from './JobService.js';
+import ffmpegService from './FFmpegService.js';
+import transcriptionService from './TranscriptionService.js';
+import socketHandler from '../socket/SocketHandler.js';
+import fs from 'fs';
 
 class QueueService {
   constructor() {
@@ -112,7 +111,7 @@ class QueueService {
         }
     } catch (e) {
         console.error(`Failed to start job ${job.id}:`, e);
-        // Ensure we don't get stuck
+        // Ensure we don't go backwards
         this.isConverting = false;
         job.status = 'error';
         job.error = 'Сбой запуска';
@@ -122,4 +121,4 @@ class QueueService {
   }
 }
 
-module.exports = new QueueService();
+export default new QueueService();

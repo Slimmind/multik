@@ -1,12 +1,11 @@
-const FFmpegService = require('./FFmpegService');
+import { describe, it, expect } from 'vitest';
+import FFmpegService from './FFmpegService.js';
 
 describe('FFmpegService', () => {
   it('should correctly convert time string to seconds', () => {
-    expect(FFmpegService.timeToSeconds('00:01:30')).toBe(90);
+    expect(FFmpegService.timeToSeconds('00:00:10')).toBe(10);
+    expect(FFmpegService.timeToSeconds('00:01:00')).toBe(60);
     expect(FFmpegService.timeToSeconds('01:00:00')).toBe(3600);
-    expect(FFmpegService.timeToSeconds('00:00:05.500')).toBe(5.5);
+    expect(FFmpegService.timeToSeconds('00:01:30.500')).toBe(90.5);
   });
-
-  // Since FFmpegService uses child_process.spawn, we would normally mock it
-  // for unit tests. For now, we test the logic we can.
 });

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import JobItem from './JobItem'
+import { JobItem } from './JobItem'
 import { Job } from '../types'
 
 const mockJob: Job = {

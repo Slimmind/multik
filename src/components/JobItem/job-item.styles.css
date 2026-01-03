@@ -321,8 +321,8 @@ body.dark-mode .transcription-result {
 
 .textarea-actions {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 18px;
+  right:10px;
   display: flex;
   gap: 6px;
   opacity: 0;
@@ -361,7 +361,8 @@ body.dark-mode .transcription-result {
 }
 
 .ai-btn {
-  display: flex;
+  /* display: flex; */
+  display: none;
 }
 
 .ai-btn:hover {

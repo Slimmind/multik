@@ -30,4 +30,4 @@ class SocketHandler {
   }
 }
 
-module.exports = new SocketHandler();
+export default new SocketHandler();
