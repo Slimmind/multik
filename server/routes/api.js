@@ -27,6 +27,7 @@ router.post('/upload', (req, res, next) => {
     next();
   });
 }, jobController.upload);
+router.post('/download-youtube', express.json(), jobController.downloadYoutube);
 router.post('/cancel', express.json(), jobController.cancel);
 router.post('/delete', express.json(), jobController.delete);
 router.post('/transcribe', express.json(), jobController.transcribe);

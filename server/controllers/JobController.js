@@ -60,6 +60,18 @@ class JobController {
     }
   }
 
+  downloadYoutube(req, res) {
+    const { jobId, url, clientId } = req.body;
+    if (!jobId || !url || !clientId) {
+      return res.status(400).json({ error: 'Нет jobId, url или clientId' });
+    }
+
+    const job = jobService.createJobFromUrl(jobId, clientId, url, 'youtube');
+    res.json({ status: 'queued' });
+
+    queueService.processQueue();
+  }
+
   cancel(req, res) {
     const { jobId } = req.body;
     if (!jobId) return res.status(400).json({ error: 'Нет jobId' });

@@ -39,6 +39,16 @@ export const ModeSelector = ({ mode, setMode }: ModeSelectorProps) => {
         onChange={() => setMode('transcription')}
       />
       <label htmlFor="mode-transcription">Транскрибация</label>
+
+      <input
+        type="radio"
+        name="mode"
+        value="youtube"
+        id="mode-youtube"
+        checked={mode === 'youtube'}
+        onChange={() => setMode('youtube')}
+      />
+      <label htmlFor="mode-youtube">YouTube</label>
     </div>
   )
 }

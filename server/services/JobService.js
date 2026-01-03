@@ -46,6 +46,26 @@ class JobService {
     return job;
   }
 
+  createJobFromUrl(id, clientId, url, mode = 'youtube') {
+    const job = {
+      id,
+      clientId,
+      filename: `Download ${url}`, // Temporary name until resolved
+      inputPath: null,
+      originalSize: 0,
+      status: 'queued',
+      progress: 0,
+      process: null,
+      thumbnail: null,
+      url: url, // Source URL
+      error: null,
+      compressionRatio: null,
+      mode
+    };
+    this.jobs.set(id, job);
+    return job;
+  }
+
   getJob(id) {
     return this.jobs.get(id);
   }

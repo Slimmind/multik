@@ -1,6 +1,7 @@
 const jobService = require('./JobService');
 const ffmpegService = require('./FFmpegService');
 const transcriptionService = require('./TranscriptionService');
+const youtubeService = require('./YoutubeService');
 const socketHandler = require('../socket/SocketHandler');
 
 const fs = require('fs');
@@ -87,8 +88,8 @@ class QueueService {
           console.log('Job cancelled');
         } else {
           job.status = 'error';
-          job.error = 'Обработка не удалась';
-          socketHandler.emitToClient(job.clientId, 'error', { id: job.id, message: 'Обработка не удалась' });
+          job.error = message || 'Обработка не удалась';
+          socketHandler.emitToClient(job.clientId, 'error', { id: job.id, message: message || 'Обработка не удалась' });
         }
         this.processQueue();
     };
@@ -107,6 +108,8 @@ class QueueService {
     try {
         if (job.mode === 'transcription') {
             transcriptionService.transcribe(job, onProgress, onComplete, onError, onStatus);
+        } else if (job.mode === 'youtube') {
+            youtubeService.download(job, onProgress, onComplete, onError, onStatus);
         } else {
             ffmpegService.convert(job, onProgress, onComplete, onError);
         }

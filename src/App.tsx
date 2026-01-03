@@ -7,6 +7,7 @@ import { Job, JobMode } from './types'
 import ModeSelector from "./components/ModeSelector"
 import UploadZone from "./components/UploadZone"
 import JobList from "./components/JobList"
+import YoutubeInput from "./components/YoutubeInput"
 
 export default function App() {
   const [jobs, setJobs] = useState<Job[]>([])
@@ -164,7 +165,36 @@ export default function App() {
           .catch(e => console.error(e))
       }
     })
+
   }, [jobs, updateJob])
+
+  const handleYoutubeDownload = async (url: string) => {
+    const newId = `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+    // Optimistic UI update
+    const newJob: Job = {
+      id: newId,
+      filename: `Video from ${url}`, // Will be updated by backend
+      mode: 'youtube',
+      status: 'pending',
+      progress: 0,
+      url: url,
+      fetchedText: false
+    }
+
+    setJobs(prev => [newJob, ...prev])
+
+    try {
+      const res = await fetch('/download-youtube', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId: newId, url, clientId })
+      })
+      if (!res.ok) throw new Error('API Error')
+    } catch (e) {
+      updateJob(newId, { status: 'error', error: 'Ошибка запуска' })
+    }
+  }
 
   return (
     <>
@@ -172,7 +202,11 @@ export default function App() {
 
       <ModeSelector mode={mode} setMode={setMode} />
 
-      <UploadZone onFilesSelected={handleFilesSelected} mode={mode} />
+      {mode === 'youtube' ? (
+        <YoutubeInput onDownload={handleYoutubeDownload} />
+      ) : (
+        <UploadZone onFilesSelected={handleFilesSelected} mode={mode} />
+      )}
 
       <JobList
         jobs={jobs}

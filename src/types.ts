@@ -1,5 +1,5 @@
 export type JobStatus = 'pending' | 'uploading' | 'processing' | 'completed' | 'error';
-export type JobMode = 'video' | 'audio' | 'transcription';
+export type JobMode = 'video' | 'audio' | 'transcription' | 'youtube';
 
 export interface Job {
   id: string;
