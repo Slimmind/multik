@@ -1,9 +1,8 @@
-const jobService = require('./JobService');
-const ffmpegService = require('./FFmpegService');
-const transcriptionService = require('./TranscriptionService');
-const socketHandler = require('../socket/SocketHandler');
-
-const fs = require('fs');
+import jobService from './JobService.js';
+import ffmpegService from './FFmpegService.js';
+import transcriptionService from './TranscriptionService.js';
+import socketHandler from '../socket/SocketHandler.js';
+import fs from 'fs';
 
 class QueueService {
   constructor() {
@@ -30,11 +29,14 @@ class QueueService {
       job.status = 'cancelled';
 
       if (job.process) {
-        // Handle child process (ffmpeg or node)
-        // Check if it's a child_process object (spawn) which has .pid
+        // Handle child process (ffmpeg or node/bun)
         console.log(`QueueService: Killing process ${job.process.pid}`);
         try {
-          process.kill(job.process.pid, 'SIGKILL');
+            if (typeof job.process.kill === 'function') {
+                job.process.kill('SIGKILL');
+            } else {
+                process.kill(job.process.pid, 'SIGKILL');
+            }
         } catch (e) {
           console.error(`QueueService: Failed to kill process ${job.process.pid}:`, e);
         }
@@ -112,7 +114,7 @@ class QueueService {
         }
     } catch (e) {
         console.error(`Failed to start job ${job.id}:`, e);
-        // Ensure we don't get stuck
+        // Ensure we don't go backwards
         this.isConverting = false;
         job.status = 'error';
         job.error = 'Сбой запуска';
@@ -122,4 +124,4 @@ class QueueService {
   }
 }
 
-module.exports = new QueueService();
+export default new QueueService();

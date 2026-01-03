@@ -4,36 +4,35 @@
   "description": "work with multimedia",
   "license": "MIT",
   "author": "slimmind",
-  "type": "commonjs",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "start": "bun server.js",
+    "dev": "bun x --bun vite",
+    "build": "bun x --bun vite build",
+    "preview": "bun x --bun vite preview",
+    "test": "bun test --env=happy-dom --preload ./src/test/setup.ts",
+    "test:watch": "bun test --watch",
+    "test:coverage": "bun test --coverage"
   },
   "dependencies": {
-    "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "fluent-ffmpeg": "^2.1.3",
     "multer": "^2.0.2",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^20.0.11",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
+    "@types/bun": "^1.3.5",
     "@types/node": "^25.0.3",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
-    "jsdom": "^27.3.0",
+    "happy-dom": "^20.0.11",
     "typescript": "^5.9.3",
-    "vite": "^7.3.0",
-    "vitest": "^4.0.16"
+    "vite": "^7.3.0"
   }
 }

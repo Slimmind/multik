@@ -1,140 +1,166 @@
-const { spawn } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+import { spawn } from 'bun';
+import path from 'path';
+import { unlink, rename } from 'node:fs/promises';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class TranscriptionService {
-  transcribe(job, onProgress, onComplete, onError, onStatus) {
+  async transcribe(job, onProgress, onComplete, onError, onStatus) {
     const originalName = path.parse(job.filename).name;
     const outputFile = path.join('output', `${originalName}.txt`);
-    const scriptPath = path.resolve('server/scripts/transcribe.py'); // Moved to scripts folder
+    const scriptPath = path.resolve('server/scripts/transcribe.py');
 
     console.log(`Starting transcription for job ${job.id}, file: ${job.inputPath}`);
-
-    // Python script saves .txt output next to the input file by default.
 
     const inputDir = path.dirname(path.resolve(job.inputPath));
     const inputExt = path.extname(job.inputPath);
     const inputBase = path.basename(job.inputPath, inputExt);
     const expectedGeneratedFile = path.join(inputDir, `${inputBase}.txt`);
 
-    // Spawn python3 process
-    const nodeCb = spawn('python3', [
+    const cmd = [
+      'python3',
       scriptPath,
       '--file', path.resolve(job.inputPath),
-      '--lang', 'ru', // Default to Russian for now, or pass from job if available
-      '--output', expectedGeneratedFile // Explicitly tell python where to save
-    ]);
+      '--lang', 'ru',
+      '--output', expectedGeneratedFile
+    ];
 
-    job.process = nodeCb;
+    try {
+      const proc = Bun.spawn(cmd, {
+        stdout: 'pipe',
+        stderr: 'pipe',
+      });
 
-    let stderrLog = [];
+      job.process = proc;
 
-    // Progress simulation
-    let progress = 0;
-    let progressInterval = null;
-    let estimatedDuration = 0;
-    let startTime = 0;
+      let stderrLog = [];
+      let progress = 0;
+      let progressInterval = null;
+      let startTime = 0;
+      const PROCESSING_FACTOR = 0.2;
 
-    // Processing speed estimation factor (0.2 ~= 5x realtime speed)
-    const PROCESSING_FACTOR = 0.2;
+      const startProgressSimulation = (duration) => {
+        if (progressInterval) clearInterval(progressInterval);
 
-    const startProgressSimulation = (duration) => {
-      if (progressInterval) clearInterval(progressInterval);
+        const estimatedProcessingTime = duration * PROCESSING_FACTOR;
+        console.log(`[Transcription] Audio duration: ${duration}s. Estimated processing: ${estimatedProcessingTime}s`);
 
-      const estimatedProcessingTime = duration * PROCESSING_FACTOR;
+        startTime = Date.now();
 
-      console.log(`[Transcription] Audio duration: ${duration}s. Estimated processing: ${estimatedProcessingTime}s`);
+        progressInterval = setInterval(() => {
+          const elapsed = (Date.now() - startTime) / 1000;
+          const calculatedProgress = (elapsed / estimatedProcessingTime) * 95;
 
-      startTime = Date.now();
+          if (calculatedProgress > progress && calculatedProgress <= 95) {
+            progress = Math.min(Math.round(calculatedProgress), 95);
+            onProgress(progress);
+          }
+        }, 1000);
+      };
 
-      progressInterval = setInterval(() => {
-        const elapsed = (Date.now() - startTime) / 1000;
-        const calculatedProgress = (elapsed / estimatedProcessingTime) * 95;
+      const cleanup = () => {
+        if (progressInterval) clearInterval(progressInterval);
+        job.process = null;
+      };
 
-        // Ensure we don't go backwards or exceed 95%
-        if (calculatedProgress > progress && calculatedProgress <= 95) {
-          progress = Math.min(Math.round(calculatedProgress), 95);
-          onProgress(progress);
-        }
-      }, 1000);
-    };
+      // Readers for stdout and stderr
+      const stdoutReader = proc.stdout.getReader();
+      const stderrReader = proc.stderr.getReader();
+      const decoder = new TextDecoder();
 
-    // parse stdout line by line to ensure we catch [DURATION] even if chunked
-    let stdoutBuffer = '';
-    nodeCb.stdout.on('data', (data) => {
-        stdoutBuffer += data.toString();
+      const processStdout = async () => {
+        let buffer = '';
+        try {
+          while (true) {
+            const { done, value } = await stdoutReader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
 
-        let lines = stdoutBuffer.split('\n');
-        // Keep the last incomplete line in buffer
-        stdoutBuffer = lines.pop();
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // keep last incomplete chunk
 
-        lines.forEach(line => {
-             line = line.trim();
-             if (!line) return;
+            for (let line of lines) {
+              line = line.trim();
+              if (!line) continue;
 
-             console.log(`[Transcription] ${line}`);
+              console.log(`[Transcription] ${line}`);
 
-             // Check for Duration
-             const durationMatch = line.match(/\[DURATION\]\s+(\d+(\.\d+)?)/);
-             if (durationMatch) {
+              const durationMatch = line.match(/\[DURATION\]\s+(\d+(\.\d+)?)/);
+              if (durationMatch) {
                  const duration = parseFloat(durationMatch[1]);
                  startProgressSimulation(duration);
-             }
+              }
 
-             // Check for Status
-             const statusMatch = line.match(/\[STATUS\]\s+(.+)/);
-             if (statusMatch && onStatus) {
+              const statusMatch = line.match(/\[STATUS\]\s+(.+)/);
+              if (statusMatch && onStatus) {
                  const status = statusMatch[1].toLowerCase();
                  onStatus(status);
-             }
-        });
-    });
+              }
+            }
+          }
+        } catch (e) {
+          console.error('[Transcription] Error reading stdout:', e);
+        }
+      };
 
-    nodeCb.stderr.on('data', (data) => {
-      const str = data.toString();
-      stderrLog.push(str);
+      const processStderr = async () => {
+        let buffer = '';
+        try {
+          while (true) {
+            const { done, value } = await stderrReader.read();
+            if (done) break;
 
-      // Filter out tqdm progress bars (often contain percentage or iterations/s)
-      if (str.includes('%|') || str.includes('frames/s') || str.includes('it/s')) {
-          // It's just progress info from python, ignore or log as info
-          return;
-      }
+            // Just decode and push logs line by line
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
 
-      if (str.toLowerCase().includes('warning')) {
-          console.warn(`[Transcription Warning] ${str.trim()}`);
-      } else if (str.toLowerCase().includes('error') || str.toLowerCase().includes('traceback')) {
-          console.error(`[Transcription Error] ${str.trim()}`);
-      } else {
-          console.log(`[Transcription Log] ${str.trim()}`);
-      }
-    });
+            for (let str of lines) {
+              str = str.trim();
+              if(!str) continue;
 
-    const cleanup = () => {
-      if (progressInterval) clearInterval(progressInterval);
-      job.process = null;
-    };
+              stderrLog.push(str);
 
-    nodeCb.on('close', (code, signal) => {
+              if (str.includes('%|') || str.includes('frames/s') || str.includes('it/s')) {
+                  continue;
+              }
+
+              if (str.toLowerCase().includes('warning')) {
+                  console.warn(`[Transcription Warning] ${str}`);
+              } else if (str.toLowerCase().includes('error') || str.toLowerCase().includes('traceback')) {
+                  console.error(`[Transcription Error] ${str}`);
+              } else {
+                  console.log(`[Transcription Log] ${str}`);
+              }
+            }
+          }
+        } catch (e) {
+          console.error('[Transcription] Error reading stderr:', e);
+        }
+      };
+
+      processStdout();
+      processStderr();
+
+      const exitCode = await proc.exited;
       cleanup();
 
-      // Don't delete source audio if it's in output folder (it's a completed extraction)
       const isOutputFile = job.inputPath.includes('output');
       if (!isOutputFile) {
-        fs.unlink(job.inputPath, () => {}); // Clean up input only if from uploads
+        try { await unlink(job.inputPath); } catch (e) {}
       }
 
-      if (signal === 'SIGKILL' || signal === 'SIGTERM') {
-        fs.unlink(expectedGeneratedFile, () => {});
+      if (proc.signalCode === 'SIGKILL' || proc.signalCode === 'SIGTERM') {
+        try { await unlink(expectedGeneratedFile); } catch (e) {}
         onError('cancelled');
         return;
       }
 
-      if (code === 0) {
-        // If input was already in output folder, the .txt is also there
-        // No need to move, just check it exists
+      if (exitCode === 0) {
         if (isOutputFile) {
-          // expectedGeneratedFile is already in output
-          if (fs.existsSync(expectedGeneratedFile)) {
+          if (await Bun.file(expectedGeneratedFile).exists()) {
             const url = `/output/${path.basename(expectedGeneratedFile)}`;
             onComplete(url, null);
           } else {
@@ -142,28 +168,30 @@ class TranscriptionService {
             onError('failed', 'Файл результата не найден');
           }
         } else {
-          // Move from uploads to output
-          if (fs.existsSync(expectedGeneratedFile)) {
-               fs.rename(expectedGeneratedFile, outputFile, (err) => {
-                   if (err) {
-                       console.error('[Transcription] Failed to move output file:', err);
-                       onError('failed', 'Ошибка сохранения файла');
-                   } else {
-                       const url = `/output/${path.basename(outputFile)}`;
-                       onComplete(url, null);
-                   }
-               });
-          } else {
-              console.error('[Transcription] Output file missing');
-              onError('failed', 'Файл результата не найден');
-          }
+          try {
+            if (await Bun.file(expectedGeneratedFile).exists()) {
+                await rename(expectedGeneratedFile, outputFile);
+                const url = `/output/${path.basename(outputFile)}`;
+                onComplete(url, null);
+            } else {
+                console.error('[Transcription] Output file missing');
+                onError('failed', 'Файл результата не найден');
+            }
+           } catch(err) {
+               console.error('[Transcription] Failed to move output file:', err);
+               onError('failed', 'Ошибка сохранения файла');
+           }
         }
       } else {
         console.error('[Transcription] Process failed:\n', stderrLog.join('\n'));
         onError('failed', stderrLog.join('\n'));
       }
-    });
+
+    } catch (e) {
+      console.error(`[Transcription] Spawn error:`, e);
+      onError('failed', e.message);
+    }
   }
 }
 
-module.exports = new TranscriptionService();
+export default new TranscriptionService();

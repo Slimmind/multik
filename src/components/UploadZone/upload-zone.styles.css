@@ -5,10 +5,10 @@
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  padding: 60px 40px;
+  padding: 40px 20px;
   text-align: center;
   color: var(--text-secondary);
-  margin: 0 auto 40px;
+  margin: 0 auto 11px;
   max-width: 700px;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   box-shadow: var(--shadow-sm);
@@ -40,9 +40,9 @@
   display: none;
 }
 
-@media (max-width: 600px) {
+@media (min-width: 600px) {
   #dropZone {
-    padding: 40px 20px;
-    margin-bottom: 20px;
+    padding: 60px 40px;
+    margin-bottom: 12px;
   }
 }

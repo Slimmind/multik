@@ -8,7 +8,6 @@
   border-style: solid;
   border-radius: var(--radius-md);
   padding: 10px;
-  margin-bottom: 16px;
   box-shadow: var(--shadow-sm);
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   animation: slideIn 0.3s ease-out;
@@ -321,8 +320,8 @@ body.dark-mode .transcription-result {
 
 .textarea-actions {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 18px;
+  right:10px;
   display: flex;
   gap: 6px;
   opacity: 0;
@@ -361,7 +360,8 @@ body.dark-mode .transcription-result {
 }
 
 .ai-btn {
-  display: flex;
+  /* display: flex; */
+  display: none;
 }
 
 .ai-btn:hover {

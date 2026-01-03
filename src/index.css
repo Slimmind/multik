@@ -26,7 +26,7 @@
   --text-secondary: #86868b;
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
-  --radius-lg: 22px;
+  --radius-lg: 24px;
   --radius-md: 12px;
   --radius-sm: 8px;
 }
@@ -71,6 +71,7 @@ body.dark-mode #root {
 #root {
   width: 100%;
   height: calc(100dvh - 20px);
+  max-height: calc(100dvh - 20px);
   padding: 10px;
   border-radius: var(--radius-lg);
 }
@@ -78,6 +79,10 @@ body.dark-mode #root {
 /* Tab Content */
 .tab-content {
   animation: fadeIn 0.2s ease;
+}
+
+ul {
+  list-style: none;
 }
 
 @keyframes fadeIn {

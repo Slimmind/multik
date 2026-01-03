@@ -2,7 +2,7 @@
 .segmented-control {
   position: relative;
   display: flex;
-  margin: 0 auto 40px auto;
+  margin: 0 auto 10px auto;
   background: rgba(118, 118, 128, 0.12);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
@@ -48,6 +48,7 @@
 
 @media (orientation: landscape) {
   .segmented-control {
-    margin-top: -72px;
+    margin-top: -51px;
+    margin-bottom: 40px;
   }
 }

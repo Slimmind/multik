@@ -2,7 +2,7 @@
 .header h2 {
   text-align: center;
   font-weight: 600;
-  font-size: 28px;
+  font-size: 24px;
   letter-spacing: -0.02em;
   margin: 0;
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--upload-color) 100%);
@@ -18,7 +18,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 10px;
   padding-bottom: 10px;
 }
 
@@ -59,12 +59,12 @@ body.dark-mode .theme-toggle:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
-@media (max-width: 600px) {
+@media (min-width: 600px) {
   h2 {
-    font-size: 24px;
+    font-size: 28px;
   }
 
   .header {
-    margin-bottom: 20px;
+    margin-bottom: 11px;
   }
 }

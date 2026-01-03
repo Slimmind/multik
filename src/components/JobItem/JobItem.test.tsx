@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
-import JobItem from './JobItem'
+import { describe, it, expect, jest } from 'bun:test'
+import { JobItem } from './JobItem'
 import { Job } from '../types'
 
 const mockJob: Job = {
@@ -13,38 +13,38 @@ const mockJob: Job = {
 }
 
 const mockHandlers = {
-  onDelete: vi.fn(),
-  onCancel: vi.fn(),
-  onRetry: vi.fn(),
-  onTranscribe: vi.fn(),
-  onCorrect: vi.fn(),
+  onDelete: jest.fn(),
+  onCancel: jest.fn(),
+  onRetry: jest.fn(),
+  onTranscribe: jest.fn(),
+  onCorrect: jest.fn(),
 }
 
 describe('JobItem Component', () => {
   it('renders filename and status text correctly', () => {
-    render(<JobItem job={mockJob} {...mockHandlers} />)
-    expect(screen.getByText(/test-video.mp4/)).toBeInTheDocument()
-    expect(screen.getByText(/Готово/)).toBeInTheDocument()
+    const { getByText } = render(<JobItem job={mockJob} {...mockHandlers} />)
+    expect(getByText(/test-video.mp4/)).toBeInTheDocument()
+    expect(getByText(/Готово/)).toBeInTheDocument()
   })
 
   it('calls onDelete when delete button is clicked', () => {
-    render(<JobItem job={mockJob} {...mockHandlers} />)
-    const deleteBtn = screen.getByTitle('Удалить')
+    const { getByTitle } = render(<JobItem job={mockJob} {...mockHandlers} />)
+    const deleteBtn = getByTitle('Удалить')
     fireEvent.click(deleteBtn)
     expect(mockHandlers.onDelete).toHaveBeenCalledWith('job-1')
   })
 
   it('shows error message when job status is error', () => {
     const errorJob: Job = { ...mockJob, status: 'error', error: 'Something went wrong' }
-    render(<JobItem job={errorJob} {...mockHandlers} />)
-    expect(screen.getByText(/Ошибка: Something went wrong/)).toBeInTheDocument()
-    expect(screen.getByText(/Повторить/)).toBeInTheDocument()
+    const { getByText } = render(<JobItem job={errorJob} {...mockHandlers} />)
+    expect(getByText(/Ошибка: Something went wrong/)).toBeInTheDocument()
+    expect(getByText(/Повторить/)).toBeInTheDocument()
   })
 
   it('shows progress when uploading', () => {
     const uploadingJob: Job = { ...mockJob, status: 'uploading', progress: 45 }
-    render(<JobItem job={uploadingJob} {...mockHandlers} />)
-    expect(screen.getByText(/Загрузка... 45%/)).toBeInTheDocument()
-    expect(screen.getByText(/Отмена/)).toBeInTheDocument()
+    const { getByText } = render(<JobItem job={uploadingJob} {...mockHandlers} />)
+    expect(getByText(/Загрузка... 45%/)).toBeInTheDocument()
+    expect(getByText(/Отмена/)).toBeInTheDocument()
   })
 })
