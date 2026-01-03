@@ -1,11 +1,16 @@
-const path = require('path');
-const fs = require('fs');
-const jobService = require('../services/JobService');
-const ffmpegService = require('../services/FFmpegService');
-const queueService = require('../services/QueueService');
-const socketHandler = require('../socket/SocketHandler');
+import path from 'path';
+import { unlink } from 'node:fs/promises';
+import { fileURLToPath } from 'url';
+import jobService from '../services/JobService.js';
+import ffmpegService from '../services/FFmpegService.js';
+import queueService from '../services/QueueService.js';
+import socketHandler from '../socket/SocketHandler.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class JobController {
+  // ... methods ...
 
   getJobs(req, res) {
     const { clientId } = req.params;
@@ -15,7 +20,6 @@ class JobController {
       status: job.status,
       progress: job.progress,
       url: job.url,
-      error: job.error,
       error: job.error,
       compressionRatio: job.compressionRatio,
       thumbnail: job.thumbnail,
@@ -72,14 +76,13 @@ class JobController {
     // If queueService didn't find it or couldn't cancel, check if it exists at all
     const job = jobService.getJob(jobId);
     if (job) {
-      // If it exists but wasn't cancellable by queueService (e.g. completed or error), just return status
       return res.json({ status: job.status });
     }
 
     res.status(404).json({ error: 'Процесс не найден' });
   }
 
-  delete(req, res) {
+  async delete(req, res) {
     const { jobId } = req.body;
     if (!jobId) return res.status(400).json({ error: 'Нет jobId' });
 
@@ -90,28 +93,25 @@ class JobController {
       jobService.deleteJob(jobId);
 
       // Helper to safely delete files
-      const safeUnlink = (filePath, type) => {
+      const safeUnlink = async (filePath, type) => {
         if (!filePath) return;
         // Ensure absolute path if not already
-        const absolutePath = path.isAbsolute(filePath)
-          ? filePath
-          : path.join(__dirname, '../../', filePath); // Adjust relative to controller if needed, but services usually store relative to root or absolute
-
-        // Actually, JobService/FFmpegService seem to store relative paths like 'output/file.mp4' or absolute paths.
-        // Let's rely on how they are stored. If they are relative to project root:
+        // JobService/FFmpegService seem to store relative paths like 'output/file.mp4' or absolute paths.
         const targetPath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
 
-        fs.unlink(targetPath, (err) => {
-          if (err && err.code !== 'ENOENT') console.error(`Error deleting ${type}:`, err);
-          else if (!err) console.log(`Deleted ${type}: ${targetPath}`);
-        });
+        try {
+            if (await Bun.file(targetPath).exists()) {
+                await unlink(targetPath);
+                console.log(`Deleted ${type}: ${targetPath}`);
+            }
+        } catch(e) {
+             console.error(`Error deleting ${type}:`, e);
+        }
       };
 
-      safeUnlink(job.url, 'output file');
-      safeUnlink(job.thumbnail, 'thumbnail');
-
-      // Also try to delete input file if it still exists
-      safeUnlink(job.inputPath, 'input file');
+      await safeUnlink(job.url, 'output file');
+      await safeUnlink(job.thumbnail, 'thumbnail');
+      await safeUnlink(job.inputPath, 'input file');
 
       return res.json({ status: 'deleted' });
     }
@@ -119,7 +119,7 @@ class JobController {
     res.status(404).json({ error: 'Задание не найдено' });
   }
 
-  transcribe(req, res) {
+  async transcribe(req, res) {
     const { jobId, audioUrl, clientId } = req.body;
     if (!jobId || !audioUrl || !clientId) {
       return res.status(400).json({ error: 'Нет jobId, audioUrl или clientId' });
@@ -129,7 +129,7 @@ class JobController {
     // Convert to file system path
     const audioPath = path.resolve('.' + audioUrl);
 
-    if (!fs.existsSync(audioPath)) {
+    if (!(await Bun.file(audioPath).exists())) {
       return res.status(404).json({ error: 'Аудиофайл не найден' });
     }
 
@@ -185,4 +185,4 @@ class JobController {
   }
 }
 
-module.exports = new JobController();
+export default new JobController();

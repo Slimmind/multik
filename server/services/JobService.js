@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+
 class JobService {
   constructor() {
     this.jobs = new Map();
@@ -24,8 +27,6 @@ class JobService {
   }
 
   createJobFromPath(id, clientId, filePath, mode = 'transcription') {
-    const fs = require('fs');
-    const path = require('path');
     const stats = fs.statSync(filePath);
     const job = {
       id,
@@ -72,4 +73,4 @@ class JobService {
   }
 }
 
-module.exports = new JobService();
+export default new JobService();

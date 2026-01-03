@@ -1,27 +1,30 @@
 # Multik - Multimedia Converter & Transcriber
 
-Multik is a web-based application for processing multimedia files. It allows users to convert videos to audio, transcribe audio to text, and AI-correct transcritptions. The project has been refactored to use a modern React frontend with Vite, while maintaining a robust Node.js/Express backend.
+Multik is a high-performance web-based application for processing multimedia files, powered by **Bun.js**. It allows users to convert videos to audio, transcribe audio to text, and AI-correct transcriptions.
+
+The project features a modern React frontend built with Vite and a streamlined, modernized **ESM** backend running on Bun.
 
 ## Features
 
-- **Video to Audio Conversion**: Upload video files and convert them to MP3.
+- **Video to Audio Conversion**: Upload video files and convert them to high-quality MP3.
 - **Audio to Text Transcription**: Transcribe audio files using OpenAI Whisper (local execution via Python).
-- **AI Text Correction**: Correct transcription errors using Google Gemini AI.
-- **Real-time Updates**: Progress tracking via Socket.IO.
-- **Modern UI**: Drag-and-drop uploads, dark mode support, and a responsive design built with React.
+- **AI Text Correction**: Automated error correction using Google Gemini AI.
+- **Real-time Progress**: Live tracking via Socket.IO.
+- **Modern UI**: MacOS-inspired glassmorphism, dark mode, and drag-and-drop support.
 
 ## Tech Stack
 
-- **Frontend**: React, Vite, CSS (MacOS-inspired aesthetics).
-- **Backend**: Node.js, Express, Socket.IO.
-- **Processing**: FFmpeg (video/audio), OpenAI Whisper (transcription).
-- **AI Services**: Google Gemini (text correction).
+- **Runtime**: [Bun.js](https://bun.sh/)
+- **Frontend**: React 19, Vite 7
+- **Backend**: Express (ESM), Socket.IO 4
+- **Processing**: FFmpeg (multimedia), OpenAI Whisper (transcription)
+- **AI**: Google Gemini Pro
 
 ## Prerequisites
 
-- **Node.js**: v14+ recommended.
-- **Python**: v3.8+ (for Whisper).
-- **FFmpeg**: Must be installed and available in system PATH.
+- **Bun**: [v1.1+](https://bun.sh/)
+- **Python**: v3.8+ (for Whisper)
+- **FFmpeg**: Must be installed and available in system PATH
 - **OpenAI Whisper**: `pip install openai-whisper`
 
 ## Installation
@@ -34,46 +37,53 @@ Multik is a web-based application for processing multimedia files. It allows use
 
 2.  Install dependencies:
     ```bash
-    npm install
+    bun install
     ```
 
 3.  Set up environment variables:
     Create a `.env` file in the root directory:
-    ```
+    ```env
     GEMINI_API_KEY=your_google_gemini_api_key
     ```
 
 ## Development
 
-To run the application in development mode (with hot-reloading for frontend):
+To run the application in development mode:
 
-1.  Start the backend server (on port 3000):
+1.  Start the backend server:
     ```bash
-    npm start
+    bun start
     ```
 
-2.  Start the Vite frontend dev server (on port 5173):
+2.  Start the Vite frontend dev server:
     ```bash
-    npm run dev
+    bun run dev
     ```
 
-   Open `http://localhost:5173` in your browser.
+    Open `http://localhost:5173` in your browser.
 
-## Production Build
+## Production
 
-To build the frontend and serve it via the Node.js backend:
+To build and run the production-ready application:
 
-1.  Build the React app:
+1.  Build the frontend:
     ```bash
-    npm run build
+    bun run build
     ```
 
-2.  Start the server (serves the `dist` folder):
+2.  Start the integrated server:
     ```bash
-    npm start
+    bun start
     ```
 
-   Open `http://localhost:3000` in your browser.
+    Open `http://localhost:3000` in your browser.
+
+## Tests
+
+Run tests using the Bun-integrated test runner or Vitest:
+```bash
+bun test
+```
 
 ## License
 
