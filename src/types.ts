@@ -1,4 +1,4 @@
-export type JobStatus = 'pending' | 'uploading' | 'processing' | 'completed' | 'error';
+export type JobStatus = 'pending' | 'uploading' | 'queued' | 'processing' | 'completed' | 'error';
 export type JobMode = 'video' | 'audio' | 'transcription';
 
 export interface Job {

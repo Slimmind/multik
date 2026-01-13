@@ -21,6 +21,7 @@ export const JobItem = ({ job, onDelete, onCancel, onRetry, onTranscribe, onCorr
   // Helpers for status text
   const getStatusText = () => {
     if (job.status === 'uploading') return `Загрузка... ${job.progress}%`
+    if (job.status === 'queued') return 'Ожидание обработки...'
     if (job.status === 'processing') {
       if (job.mode === 'transcription') return `Транскрибация... ${job.progress}%`
       if (job.mode === 'audio') return `Экстракция аудио... ${job.progress}%`
