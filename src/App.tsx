@@ -3,14 +3,16 @@ import Header from './components/header'
 import useSocket from './hooks/useSocket'
 import useUploadQueue from './hooks/useUploadQueue'
 import useInit from './hooks/useInit'
-import { Job, JobMode } from './types'
+import { Job, JobMode, EncodingMode } from './types'
 import ModeSelector from "./components/ModeSelector"
 import UploadZone from "./components/UploadZone"
+import { EncodingToggle } from "./components/EncodingToggle/EncodingToggle"
 import JobList from "./components/JobList"
 
 export default function App() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [mode, setMode] = useState<JobMode>('video')
+  const [encodingMode, setEncodingMode] = useState<EncodingMode>('hardware')
 
   // -- Initialization logic moved to useInit --
   const { clientId, isDarkTheme, toggleTheme } = useInit()
@@ -61,6 +63,7 @@ export default function App() {
       file: file,
       filename: file.name,
       mode: mode,
+      encodingMode: encodingMode, // Passed from state
       status: 'pending',
       progress: 0,
       size: file.size
@@ -173,6 +176,13 @@ export default function App() {
       <ModeSelector mode={mode} setMode={setMode} />
 
       <UploadZone onFilesSelected={handleFilesSelected} mode={mode} />
+
+
+
+      {/* Encoding Mode Toggle */}
+      {mode === 'video' && (
+        <EncodingToggle encodingMode={encodingMode} setEncodingMode={setEncodingMode} />
+      )}
 
       <JobList
         jobs={jobs}

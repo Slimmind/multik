@@ -35,10 +35,11 @@ class JobController {
         const clientId = req.body.clientId;
         const jobId = req.body.jobId;
         const mode = req.body.mode || 'video';
+        const encodingMode = req.body.encodingMode || 'hardware';
 
         if (!clientId || !jobId) return res.status(400).json({ error: 'Нет clientId или jobId' });
 
-        const job = jobService.createJob(jobId, clientId, req.file, mode);
+        const job = jobService.createJob(jobId, clientId, req.file, mode, encodingMode);
         res.json({ status: 'queued' });
 
         // Generate thumbnail asynchronously only for video

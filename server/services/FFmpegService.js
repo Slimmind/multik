@@ -71,13 +71,25 @@ class FFmpegService {
         '-q:a', '2'
       );
     } else {
-      ffmpegArgs.push(
-        '-c:v', 'libx264',
-        '-preset', 'fast',
-        '-threads', '2',
-        '-x264-params', 'threads=2',
-        '-c:a', 'aac'
-      );
+       if (job.encodingMode === 'software') {
+           // Software encoding (CPU)
+           ffmpegArgs.push(
+               '-c:v', 'libx264',
+               '-preset', 'fast',
+               '-threads', '2',
+               '-x264-params', 'threads=2',
+               '-c:a', 'aac'
+           );
+       } else {
+           // Hardware encoding (default)
+           ffmpegArgs.push(
+            '-vf', 'fps=30,scale=1920:1080:flags=lanczos,format=yuv420p',
+            '-pix_fmt', 'yuv420p',
+            '-c:v', 'h264_v4l2m2m',
+            '-b:v', '10M',
+            '-c:a', 'aac'
+          );
+       }
     }
 
     ffmpegArgs.push('-y', outputFile);

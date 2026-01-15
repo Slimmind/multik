@@ -106,12 +106,15 @@ export const JobItem = ({ job, onDelete, onCancel, onRetry, onTranscribe, onCorr
                 </button>
               )}
 
-              <span className={`file-status ${job.status}`}>
-                {getStatusText()}
-                {job.status === 'completed' && job.url && (
-                  <a href={job.url} download className="download-link"> Скачать</a>
-                )}
-              </span>
+              <div className="status-container">
+
+                 <span className={`file-status ${job.status}`}>
+                  {getStatusText()}
+                  {job.status === 'completed' && job.url && (
+                    <a href={job.url} download className="download-link"> Скачать</a>
+                  )}
+                 </span>
+              </div>
             </div>
 
             <div className="progress-container">
@@ -143,6 +146,13 @@ export const JobItem = ({ job, onDelete, onCancel, onRetry, onTranscribe, onCorr
                   />
                   <label htmlFor={`transcribe-${job.id}`}>Транскрибировать</label>
                 </div>
+              )}
+
+              {/* Processing Duration */}
+              {job.status === 'completed' && job.duration && (
+                 <span className="duration-badge" style={{ marginLeft: 'auto', alignSelf: 'center' }}>
+                   ⏱ {job.duration}
+                 </span>
               )}
             </div>
           </div>

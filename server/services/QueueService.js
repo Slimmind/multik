@@ -57,6 +57,7 @@ class QueueService {
   startConversion(job) {
     this.isConverting = true;
     job.status = 'processing';
+    job.startTime = Date.now();
 
     socketHandler.emitToClient(job.clientId, 'status_change', { id: job.id, status: 'processing' });
 
@@ -77,8 +78,28 @@ class QueueService {
         job.progress = 100;
         job.url = url;
         job.compressionRatio = ratio;
-        console.log(`Job completed. Ratio: ${ratio}%`);
-        socketHandler.emitToClient(job.clientId, 'complete', { id: job.id, url, compressionRatio: ratio });
+        job.endTime = Date.now();
+
+        let duration = null;
+        if (job.startTime) {
+            const ms = job.endTime - job.startTime;
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            const pad = (num) => num.toString().padStart(2, '0');
+            duration = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+            job.duration = duration;
+        }
+
+        console.log(`Job completed. Ratio: ${ratio}% Duration: ${duration}`);
+        socketHandler.emitToClient(job.clientId, 'complete', {
+            id: job.id,
+            url,
+            compressionRatio: ratio,
+            duration
+        });
         this.processQueue();
     };
 
