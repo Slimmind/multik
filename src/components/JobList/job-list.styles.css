@@ -6,7 +6,7 @@
   margin: 0 auto;
   max-width: 740px;
   height: 100%;
-  max-height: calc(100dvh - 285px);
+  max-height: calc(100dvh - 325px);
   padding-top: 2px;
   border-radius: var(--radius-md);
   overflow-y: auto;
@@ -14,7 +14,7 @@
 
 @media (min-width: 768px) {
   .file-list {
-    max-height: calc(100dvh - 245px);
+    max-height: calc(100dvh - 305px);
     padding: 20px;
   }
 }

@@ -1,8 +1,11 @@
 export type JobStatus = 'pending' | 'uploading' | 'queued' | 'processing' | 'completed' | 'error';
 export type JobMode = 'video' | 'audio' | 'transcription';
+export type EncodingMode = 'software' | 'hardware';
 
 export interface Job {
   id: string;
+  encodingMode?: EncodingMode;
+  duration?: string;
   file?: File;
   filename: string;
   mode: JobMode;

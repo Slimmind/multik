@@ -26,6 +26,7 @@ export default function useUploadQueue(clientId: string, updateJob: (id: string,
     fd.append('clientId', clientId)
     fd.append('jobId', job.id)
     fd.append('mode', job.mode)
+    if (job.encodingMode) fd.append('encodingMode', job.encodingMode)
 
     const xhr = new XMLHttpRequest()
     activeUploads.current.set(job.id, xhr)

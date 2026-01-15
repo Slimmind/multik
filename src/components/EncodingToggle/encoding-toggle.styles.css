@@ -1,0 +1,52 @@
+.encoding-toggle-container {
+  display: flex;
+  justify-content: center;
+  margin: 10px 0;
+  width: 100%;
+}
+
+.encoding-toggle {
+  display: flex;
+  background: rgba(0, 0, 0, 0.05); /* Light gray for light mode */
+  padding: 4px;
+  border-radius: 20px;
+  gap: 5px;
+}
+
+body.dark-mode .encoding-toggle {
+  background: rgba(255, 255, 255, 0.1); /* Lighter background for dark mode */
+}
+
+.toggle-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  font-family: inherit;
+  outline: none;
+}
+
+.toggle-btn:hover {
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+body.dark-mode .toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.toggle-btn.active {
+  background: var(--primary-color);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.25);
+}
+
+.toggle-btn.active:hover {
+  background: var(--primary-color); /* Maintain primary color on hover if active */
+  opacity: 0.9;
+}

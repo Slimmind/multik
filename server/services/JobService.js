@@ -6,7 +6,7 @@ class JobService {
     this.jobs = new Map();
   }
 
-  createJob(id, clientId, file, mode = 'video') {
+  createJob(id, clientId, file, mode = 'video', encodingMode = 'hardware') {
     const job = {
       id,
       clientId,
@@ -20,7 +20,11 @@ class JobService {
       url: null,
       error: null,
       compressionRatio: null,
-      mode
+      mode,
+      encodingMode,
+      startTime: null,
+      endTime: null,
+      duration: null
     };
     this.jobs.set(id, job);
     return job;
@@ -41,7 +45,10 @@ class JobService {
       url: null,
       error: null,
       compressionRatio: null,
-      mode
+      mode,
+      startTime: null,
+      endTime: null,
+      duration: null
     };
     this.jobs.set(id, job);
     return job;

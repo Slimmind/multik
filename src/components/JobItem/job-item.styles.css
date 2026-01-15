@@ -139,6 +139,21 @@ body.dark-mode .thumbnail-placeholder {
   color: var(--upload-color);
 }
 
+.status-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.duration-badge {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
 .file-status.completed {
   background: rgba(52, 199, 89, 0.1);
   border-color: var(--success-color-transparent);

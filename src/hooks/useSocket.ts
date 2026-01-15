@@ -16,6 +16,7 @@ interface CompleteData {
   id: string;
   url: string;
   compressionRatio?: number;
+  duration?: string;
 }
 
 interface ErrorData {
@@ -66,6 +67,7 @@ export default function useSocket(
           status: 'completed',
           url: data.url,
           compressionRatio: data.compressionRatio,
+          duration: data.duration,
           progress: 100
         })
       })
