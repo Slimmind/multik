@@ -46,7 +46,18 @@ body.dark-mode .toggle-btn:hover {
   box-shadow: 0 2px 8px rgba(0, 122, 255, 0.25);
 }
 
+
 .toggle-btn.active:hover {
   background: var(--primary-color); /* Maintain primary color on hover if active */
   opacity: 0.9;
+}
+
+.encoding-toggle-container.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.encoding-toggle-container.disabled .toggle-btn {
+  cursor: not-allowed;
 }

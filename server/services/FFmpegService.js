@@ -83,7 +83,7 @@ class FFmpegService {
        } else {
            // Hardware encoding (default)
            ffmpegArgs.push(
-            '-vf', 'fps=30,scale=1920:1080:flags=lanczos,format=yuv420p',
+            '-vf', 'fps=30,scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p',
             '-pix_fmt', 'yuv420p',
             '-c:v', 'h264_v4l2m2m',
             '-b:v', '10M',
