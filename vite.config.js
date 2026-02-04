@@ -9,15 +9,13 @@ export default defineConfig({
     proxy: {
       '/socket.io': {
         target: 'http://localhost:3000',
-        ws: true
+        ws: true,
+        changeOrigin: true
       },
-      '/upload': 'http://localhost:3000',
-      '/jobs': 'http://localhost:3000',
-      '/cancel': 'http://localhost:3000',
-      '/delete': 'http://localhost:3000',
-      '/transcribe': 'http://localhost:3000',
-      '/correct': 'http://localhost:3000',
-      '/output': 'http://localhost:3000'
+      '^/(upload|jobs|cancel|delete|transcribe|correct|output|system-info)': {
+        target: 'http://localhost:3000',
+        changeOrigin: true
+      }
     }
   }
 })

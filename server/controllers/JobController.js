@@ -23,7 +23,11 @@ class JobController {
       error: job.error,
       compressionRatio: job.compressionRatio,
       thumbnail: job.thumbnail,
-      mode: job.mode || 'video'
+      mode: job.mode || 'video',
+      startTime: job.startTime,
+      endTime: job.endTime,
+      duration: job.duration,
+      conversionDuration: job.conversionDuration // For backward compatibility if needed, or if separate logic exists
     }));
     res.json(userJobs);
   }

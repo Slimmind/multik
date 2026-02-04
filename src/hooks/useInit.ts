@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 export default function useInit() {
   const [clientId, setClientId] = useState('')
   const [isDarkTheme, setIsDarkTheme] = useState(false)
+  const [isRPi, setIsRPi] = useState(false)
 
   useEffect(() => {
     // Client ID initialization
@@ -25,6 +26,15 @@ export default function useInit() {
       setIsDarkTheme(false)
       document.body.classList.remove('dark-mode')
     }
+
+    // Check system info
+    fetch('/system-info')
+      .then(res => res.json())
+      .then(data => {
+        setIsRPi(data.isRPi)
+      })
+      .catch(err => console.error('Failed to fetch system info:', err))
+
   }, [])
 
   const toggleTheme = () => {
@@ -34,5 +44,5 @@ export default function useInit() {
     localStorage.setItem('theme', newDark ? 'dark' : 'light')
   }
 
-  return { clientId, isDarkTheme, toggleTheme }
+  return { clientId, isDarkTheme, toggleTheme, isRPi }
 }

@@ -36,4 +36,9 @@ app.use('/output', express.static(path.join(__dirname, 'output')));
 // Routes
 app.use('/', apiRoutes);
 
+// SPA Fallback
+app.get(/.*/, (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
 server.listen(PORT, () => console.log(`http://localhost:${PORT}`));

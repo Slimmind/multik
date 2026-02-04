@@ -14,6 +14,15 @@ import math
 import numpy as np
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor, as_completed
+import ssl
+
+# Disable SSL verification for corporate proxies
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
 
 # Поддерживаемые аудио-расширения
 AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".wma", ".aac", ".opus"}

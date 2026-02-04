@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Job } from '../../types'
 import './job-item.styles.css'
 
@@ -17,6 +17,40 @@ export const JobItem = ({ job, onDelete, onCancel, onRetry, onTranscribe, onCorr
   const [isAiProcessing, setIsAiProcessing] = useState(false)
   const [aiSuccess, setAiSuccess] = useState(false)
   const [aiError, setAiError] = useState(false)
+  const [displayDuration, setDisplayDuration] = useState<string>('');
+
+  useEffect(() => {
+    let interval: Timer;
+
+    const updateTimer = () => {
+      if (job.status === 'completed' && job.duration) {
+        setDisplayDuration(job.duration);
+        return;
+      }
+
+      if (job.status === 'processing' && job.startTime) {
+        const now = Date.now();
+        const diff = now - job.startTime;
+        const totalSeconds = Math.floor(diff / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        setDisplayDuration(`${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
+      } else {
+         setDisplayDuration('');
+      }
+    };
+
+    updateTimer(); // Initial call
+
+    if (job.status === 'processing') {
+      interval = setInterval(updateTimer, 1000);
+    }
+
+    return () => clearInterval(interval);
+  }, [job.status, job.startTime, job.duration, job.endTime]);
 
   // Helpers for status text
   const getStatusText = () => {
@@ -124,7 +158,7 @@ export const JobItem = ({ job, onDelete, onCancel, onRetry, onTranscribe, onCorr
               ></div>
             </div>
 
-            <div className="actions" style={{ marginTop: '10px' }}>
+            <div className="actions">
               {job.status === 'uploading' && (
                 <button className="cancel-btn" onClick={() => onCancel(job.id)}>Отмена</button>
               )}
@@ -149,9 +183,9 @@ export const JobItem = ({ job, onDelete, onCancel, onRetry, onTranscribe, onCorr
               )}
 
               {/* Processing Duration */}
-              {job.status === 'completed' && job.duration && (
-                 <span className="duration-badge" style={{ marginLeft: 'auto', alignSelf: 'center' }}>
-                   ⏱ {job.duration}
+              {(job.status === 'completed' || job.status === 'processing') && (
+                 <span className="duration-badge" style={{ marginLeft: 'auto', alignSelf: 'center', fontFamily: 'monospace' }}>
+                   ⏱ {displayDuration}
                  </span>
               )}
             </div>

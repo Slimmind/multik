@@ -62,7 +62,7 @@ class FFmpegService {
 
     console.log(`Starting conversion for job ${job.id}, file: ${job.inputPath}`);
 
-    const ffmpegArgs = ['-threads', '2', '-i', job.inputPath];
+    const ffmpegArgs = ['-threads', '4', '-i', job.inputPath];
 
     if (job.mode === 'audio') {
       ffmpegArgs.push(
@@ -76,8 +76,8 @@ class FFmpegService {
            ffmpegArgs.push(
                '-c:v', 'libx264',
                '-preset', 'fast',
-               '-threads', '2',
-               '-x264-params', 'threads=2',
+               '-threads', '4',
+               '-x264-params', 'threads=4',
                '-c:a', 'aac'
            );
        } else {

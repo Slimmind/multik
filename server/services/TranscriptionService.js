@@ -31,6 +31,12 @@ class TranscriptionService {
       const proc = Bun.spawn(cmd, {
         stdout: 'pipe',
         stderr: 'pipe',
+        env: {
+          ...process.env,
+          OMP_NUM_THREADS: '2',
+          MKL_NUM_THREADS: '2',
+          OPENBLAS_NUM_THREADS: '2'
+        }
       });
 
       job.process = proc;

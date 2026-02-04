@@ -19,4 +19,7 @@ export interface Job {
   sourceAudioUrl?: string;
   transcriptionText?: string;
   fetchedText?: boolean;
+  startTime?: number;
+  endTime?: number;
+  conversionDuration?: number;
 }

@@ -16,7 +16,7 @@ export default function App() {
   const [encodingMode, setEncodingMode] = useState<EncodingMode>('hardware')
 
   // -- Initialization --
-  const { clientId, isDarkTheme, toggleTheme } = useInit()
+  const { clientId, isDarkTheme, toggleTheme, isRPi } = useInit()
 
   // -- State & Data --
   const { jobs, setJobs, updateJob, moveToTop } = useJobs(clientId)
@@ -24,6 +24,15 @@ export default function App() {
   // -- Hooks --
   const { addToQueue, cancelUpload, retryUpload } = useUploadQueue(clientId, updateJob)
   useSocket(clientId, updateJob, moveToTop)
+
+  // Force software mode if not on RPi
+  React.useEffect(() => {
+    if (isRPi) {
+      setEncodingMode('hardware')
+    } else {
+      setEncodingMode('software')
+    }
+  }, [isRPi])
 
   // -- Actions --
   const {
@@ -59,7 +68,7 @@ export default function App() {
         <EncodingToggle
           encodingMode={encodingMode}
           setEncodingMode={setEncodingMode}
-          disabled={jobs.some(job => job.status !== 'completed' && job.status !== 'error')}
+          disabled={!isRPi || jobs.some(job => job.status !== 'completed' && job.status !== 'error')}
         />
       )}
 
