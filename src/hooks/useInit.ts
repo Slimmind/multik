@@ -4,6 +4,7 @@ export default function useInit() {
   const [clientId, setClientId] = useState('')
   const [isDarkTheme, setIsDarkTheme] = useState(false)
   const [isRPi, setIsRPi] = useState(false)
+  const [systemInfoLoaded, setSystemInfoLoaded] = useState(false)
 
   useEffect(() => {
     // Client ID initialization
@@ -34,6 +35,7 @@ export default function useInit() {
         setIsRPi(data.isRPi)
       })
       .catch(err => console.error('Failed to fetch system info:', err))
+      .finally(() => setSystemInfoLoaded(true))
 
   }, [])
 
@@ -44,5 +46,5 @@ export default function useInit() {
     localStorage.setItem('theme', newDark ? 'dark' : 'light')
   }
 
-  return { clientId, isDarkTheme, toggleTheme, isRPi }
+  return { clientId, isDarkTheme, toggleTheme, isRPi, systemInfoLoaded }
 }

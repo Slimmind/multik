@@ -16,7 +16,7 @@ export default function App() {
   const [encodingMode, setEncodingMode] = useState<EncodingMode>('hardware')
 
   // -- Initialization --
-  const { clientId, isDarkTheme, toggleTheme, isRPi } = useInit()
+  const { clientId, isDarkTheme, toggleTheme, isRPi, systemInfoLoaded } = useInit()
 
   // -- State & Data --
   const { jobs, setJobs, updateJob, moveToTop } = useJobs(clientId)
@@ -25,14 +25,27 @@ export default function App() {
   const { addToQueue, cancelUpload, retryUpload } = useUploadQueue(clientId, updateJob)
   useSocket(clientId, updateJob, moveToTop)
 
-  // Force software mode if not on RPi
+  // Handle encoding mode persistence and RPi constraints
   React.useEffect(() => {
+    if (!systemInfoLoaded) return
+
+    const savedMode = localStorage.getItem('multik_encoding_mode') as EncodingMode
+
     if (isRPi) {
-      setEncodingMode('hardware')
+      if (savedMode === 'software') {
+        setEncodingMode('software')
+      } else {
+        setEncodingMode('hardware')
+      }
     } else {
       setEncodingMode('software')
     }
-  }, [isRPi])
+  }, [isRPi, systemInfoLoaded])
+
+  const handleSetEncodingMode = (newMode: EncodingMode) => {
+    setEncodingMode(newMode)
+    localStorage.setItem('multik_encoding_mode', newMode)
+  }
 
   // -- Actions --
   const {
@@ -67,7 +80,7 @@ export default function App() {
       {mode === 'video' && (
         <EncodingToggle
           encodingMode={encodingMode}
-          setEncodingMode={setEncodingMode}
+          setEncodingMode={handleSetEncodingMode}
           disabled={!isRPi || jobs.some(job => job.status !== 'completed' && job.status !== 'error')}
         />
       )}
