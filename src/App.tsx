@@ -10,6 +10,7 @@ import { EncodingToggle } from "./components/EncodingToggle/EncodingToggle"
 import JobList from "./components/JobList"
 import { useJobs } from './hooks/useJobs'
 import { useJobActions } from './hooks/useJobActions'
+import { Footer } from "./components/footer/Footer"
 
 export default function App() {
   const [mode, setMode] = useState<JobMode>('video')
@@ -94,6 +95,8 @@ export default function App() {
         onTranscribe={handleTranscribe}
         onCorrect={handleCorrect}
       />
+
+      <Footer />
     </>
   )
 }

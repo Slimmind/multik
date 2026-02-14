@@ -4,6 +4,13 @@ import path from 'path';
 
 console.log("Starting Multik Dev Server...");
 
+// Generate version file from package.json
+const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+const versionContent = `// This file is auto-generated during build
+export const VERSION = '${packageJson.version}';
+`;
+fs.writeFileSync('src/version.ts', versionContent);
+
 // 1. Initial Build & Watch
 // We use a simplified bundler logic here for watch mode or spawn the bundler logic
 // Bun.build doesn't have a built-in "watch" CLI flag, but we can wrap it.

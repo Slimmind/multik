@@ -1,6 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 
+// Generate version file from package.json
+const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+const versionContent = `// This file is auto-generated during build
+export const VERSION = '${packageJson.version}';
+`;
+fs.writeFileSync('src/version.ts', versionContent);
+
 // Clean dist directory
 if (fs.existsSync('dist')) {
   fs.rmSync('dist', { recursive: true, force: true });
