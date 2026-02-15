@@ -1,5 +1,6 @@
 import React from 'react';
 import { EncodingMode } from '../../types';
+import { t } from '../../locales/i18n';
 import './encoding-toggle.styles.css';
 
 interface EncodingToggleProps {
@@ -10,7 +11,10 @@ interface EncodingToggleProps {
 
 export const EncodingToggle = ({ encodingMode, setEncodingMode, disabled }: EncodingToggleProps) => {
   return (
-    <div className={`encoding-toggle-container ${disabled ? 'disabled' : ''}`}>
+    <div
+      className={`encoding-toggle-container ${disabled ? 'disabled' : ''}`}
+      title={disabled ? t('app.encoding_mode.disabled_hint') : ''}
+    >
       <div className="encoding-toggle">
         <button
           className={`toggle-btn ${encodingMode === 'software' ? 'active' : ''}`}
@@ -18,7 +22,7 @@ export const EncodingToggle = ({ encodingMode, setEncodingMode, disabled }: Enco
           type="button"
           disabled={disabled}
         >
-          Software (CPU)
+          {t('app.encoding_mode.software')}
         </button>
         <button
           className={`toggle-btn ${encodingMode === 'hardware' ? 'active' : ''}`}
@@ -26,7 +30,7 @@ export const EncodingToggle = ({ encodingMode, setEncodingMode, disabled }: Enco
           type="button"
           disabled={disabled}
         >
-          Hardware (GPU)
+          {t('app.encoding_mode.hardware')}
         </button>
       </div>
     </div>

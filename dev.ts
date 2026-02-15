@@ -70,16 +70,21 @@ const build = async () => {
 // Initial build
 await build();
 
-// Watch src folder
+// Watch src folder with debounce
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+const DEBOUNCE_DELAY = 300;
+
 const watcher = fs.watch('./src', { recursive: true }, async (event, filename) => {
-    // Debounce could be added here
-    await build();
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async () => {
+        await build();
+    }, DEBOUNCE_DELAY);
 });
 console.log("Watching for changes in src...");
 
 
 // 2. Run Server
-const server = spawn("bun", ["server.js"], {
+const server = spawn("bun", ["server.ts"], {
     stdio: "inherit",
     env: { ...process.env }
 });

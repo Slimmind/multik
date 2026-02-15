@@ -1,12 +1,14 @@
 import express from 'express';
 const router = express.Router();
 import multer from 'multer';
-import jobController from '../controllers/JobController.js';
+import jobController from '../controllers/JobController.ts';
+import systemController from '../controllers/SystemController.ts';
+import config from '../config.ts';
 
 // Multer setup
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, config.dirs.uploads);
   },
   filename: (req, file, cb) => {
     // Fix encoding for non-latin characters
@@ -14,7 +16,22 @@ const storage = multer.diskStorage({
     cb(null, file.originalname);
   }
 });
-const upload = multer({ storage: storage });
+
+const allowedTypes = [...config.upload.allowedVideoTypes, ...config.upload.allowedAudioTypes];
+
+const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error(`Недопустимый тип файла: ${file.mimetype}`));
+  }
+};
+
+const upload = multer({
+  storage,
+  limits: { fileSize: config.upload.maxFileSize },
+  fileFilter,
+});
 
 // Routes
 router.get('/jobs/:clientId', jobController.getJobs);
@@ -30,11 +47,6 @@ router.post('/upload', (req, res, next) => {
 router.post('/cancel', express.json(), jobController.cancel);
 router.post('/delete', express.json(), jobController.delete);
 router.post('/transcribe', express.json(), jobController.transcribe);
-
-import systemController from '../controllers/SystemController.js';
-
-// ... existing routes ...
-
 router.get('/system-info', systemController.getSystemInfo);
 
 // AI Text Correction using Google Gemini

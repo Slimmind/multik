@@ -11,10 +11,17 @@ import JobList from "./components/JobList"
 import { useJobs } from './hooks/useJobs'
 import { useJobActions } from './hooks/useJobActions'
 import { Footer } from "./components/footer/Footer"
+import { useNotifications } from './hooks/useNotifications'
 
 export default function App() {
   const [mode, setMode] = useState<JobMode>('video')
-  const [encodingMode, setEncodingMode] = useState<EncodingMode>('hardware')
+  const [encodingMode, setEncodingMode] = useState<EncodingMode>('software')
+  const { requestPermission } = useNotifications()
+
+  // Request notification permission on first mount
+  React.useEffect(() => {
+    requestPermission()
+  }, [requestPermission])
 
   // -- Initialization --
   const { clientId, isDarkTheme, toggleTheme, isRPi, systemInfoLoaded } = useInit()
@@ -78,11 +85,11 @@ export default function App() {
       />
 
       {/* Encoding Mode Toggle */}
-      {mode === 'video' && (
+      {mode === 'video' && isRPi && (
         <EncodingToggle
           encodingMode={encodingMode}
           setEncodingMode={handleSetEncodingMode}
-          disabled={!isRPi || jobs.some(job => job.status !== 'completed' && job.status !== 'error')}
+          disabled={jobs.some(job => job.status !== 'completed' && job.status !== 'error')}
         />
       )}
 

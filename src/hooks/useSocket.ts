@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { JobStatus, Job } from '../types'
+import { useNotifications } from './useNotifications';
 
 // Type definitions for Socket.IO events
 interface StatusChangeData {
@@ -41,6 +42,7 @@ export default function useSocket(
   onMoveToTop: (id: string) => void
 ) {
   const socketRef = useRef<any>(null)
+  const { notifyJobStatus } = useNotifications();
 
   useEffect(() => {
     if (!clientId) return
@@ -70,10 +72,12 @@ export default function useSocket(
           duration: data.duration,
           progress: 100
         })
+        notifyJobStatus({ id: data.id, status: 'completed' } as Job);
       })
 
       socket.on('error', (data: ErrorData) => {
         onUpdateJob(data.id, { status: 'error', error: data.message })
+        notifyJobStatus({ id: data.id, status: 'error', error: data.message } as Job);
       })
 
       socket.on('thumbnail', (data: ThumbnailData) => {

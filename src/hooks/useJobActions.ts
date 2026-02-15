@@ -1,4 +1,5 @@
 import { Job, JobMode, EncodingMode } from '../types'
+import { t } from '../locales/i18n'
 
 interface UseJobActionsProps {
   jobs: Job[];
@@ -38,7 +39,7 @@ export const useJobActions = ({
 
   const handleCancel = async (id: string) => {
     if (cancelUpload(id)) {
-      updateJob(id, { status: 'error', error: 'Отменено' })
+      updateJob(id, { status: 'error', error: t('app.status.cancelled') })
       return
     }
 
@@ -48,7 +49,7 @@ export const useJobActions = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId: id })
       })
-      updateJob(id, { status: 'error', error: 'Отменено' })
+      updateJob(id, { status: 'error', error: t('app.status.cancelled') })
     } catch (e) {
       console.error(e)
     }
@@ -70,7 +71,7 @@ export const useJobActions = ({
   const handleRetry = (id: string) => {
     const job = jobs.find(j => j.id === id)
     if (!job || !job.file) {
-      alert('Файл недоступен для повтора (обновите страницу и попробуйте загрузить заново)')
+      alert(t('app.job.no_file_retry'))
       return
     }
 
@@ -103,7 +104,7 @@ export const useJobActions = ({
       })
       if (!res.ok) throw new Error('API Error')
     } catch (e) {
-      updateJob(newId, { status: 'error', error: 'Ошибка запуска' })
+      updateJob(newId, { status: 'error', error: t('app.errors.api_fail') })
     }
   }
 

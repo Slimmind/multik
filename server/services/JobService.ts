@@ -1,11 +1,22 @@
 import fs from 'fs';
 import path from 'path';
 import { readdir } from 'node:fs/promises';
+import config from '../config.ts';
+import type { Job, JobStatus, JobMode, EncodingMode } from '../../src/types.ts';
 
 const JOBS_FILE = path.resolve('jobs.json');
-const OUTPUT_DIR = path.resolve('output');
+const OUTPUT_DIR = path.resolve(config.dirs.output);
+
+interface ExtendedJob extends Job {
+  clientId: string;
+  inputPath: string;
+  originalSize: number;
+  process: any;
+}
 
 class JobService {
+  private jobs: Map<string, ExtendedJob>;
+
   constructor() {
     this.jobs = new Map();
     this.loadJobs();
@@ -19,30 +30,20 @@ class JobService {
     try {
       if (fs.existsSync(JOBS_FILE)) {
         const data = fs.readFileSync(JOBS_FILE, 'utf8');
-        const jobsArray = JSON.parse(data);
+        const jobsArray: ExtendedJob[] = JSON.parse(data);
         let validJobsCount = 0;
         let prunedCount = 0;
 
         jobsArray.forEach(job => {
-            // Check if file exists for completed/recovered jobs
-            // For queued/processing jobs, inputPath should exist.
-            // For completed jobs, we might care about the output (url points to it) or input.
-            // 'recovered' jobs rely on inputPath which is the file in output dir.
-
             let isValid = true;
 
-            // If it's a recovered job or completed, the file it points to should exist
             if (job.status === 'completed' || job.clientId === 'recovered') {
-                // For recovered jobs, inputPath is the file in output
-                // For normal completed jobs, we might check inputPath or just assume consistency?
-                // Let's be safe and check inputPath if it looks like a local file
                 if (job.inputPath && !fs.existsSync(job.inputPath)) {
                     isValid = false;
                 }
             } else if (job.status === 'queued') {
                  if (job.inputPath && !fs.existsSync(job.inputPath)) {
                     isValid = false;
-                    // Alternatively, we could mark it as failed? But pruning is cleaner for "phantom" jobs.
                  }
             }
 
@@ -68,7 +69,6 @@ class JobService {
   saveJobs() {
     try {
       const jobsArray = Array.from(this.jobs.values()).map(job => {
-         // Create a copy to avoid circular references if any (e.g. process object)
          const { process, ...jobData } = job;
          return jobData;
       });
@@ -86,7 +86,6 @@ class JobService {
         let recoveredCount = 0;
 
         for (const file of files) {
-            // Skip hidden files or system files
             if (file.startsWith('.')) continue;
 
             const filePath = path.join(OUTPUT_DIR, file);
@@ -94,27 +93,23 @@ class JobService {
             const isVideo = ['.mp4', '.mov', '.avi', '.mkv', '.webm'].includes(ext);
             const isAudio = ['.mp3', '.wav', '.ogg', '.m4a'].includes(ext);
             const isText = ['.txt', '.srt', '.vtt', '.json', '.md'].includes(ext);
-            const isImage = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext); // Thumbnails
 
             if (!isVideo && !isAudio && !isText) continue;
 
-            // Check if this file is already associated with a job (as output url or input path)
-            // Note: Job URLs are like '/output/filename.mp4'
             const relativeUrl = `/output/${file}`;
             const exists = Array.from(this.jobs.values()).some(job =>
                 job.url === relativeUrl || (job.thumbnail === relativeUrl)
             );
 
             if (!exists) {
-                // Create a recovered job
                 const id = `rec_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
                 const stats = fs.statSync(filePath);
 
-                const job = {
+                const job: ExtendedJob = {
                     id,
-                    clientId: 'recovered', // Visible to all
+                    clientId: 'recovered',
                     filename: file,
-                    inputPath: filePath, // Existing output is now the input for this "job" entry
+                    inputPath: filePath,
                     originalSize: stats.size,
                     status: 'completed',
                     progress: 100,
@@ -122,23 +117,15 @@ class JobService {
                     thumbnail: null,
                     url: relativeUrl,
                     error: null,
-                    compressionRatio: null,
+                    compressionRatio: 0,
                     mode: isAudio ? 'audio' : (isText ? 'transcription' : 'video'),
-                    encodingMode: 'software', // Unknown, assumption
+                    encodingMode: 'software',
                     startTime: stats.birthtimeMs,
                     endTime: stats.mtimeMs,
-                    duration: null,
+                    conversionDuration: 0,
+                    transcriptionText: '',
                     fetchedText: false
                 };
-
-                // Try to find corresponding thumbnail if video
-                if (isVideo) {
-                    const thumbName = `thumb-${path.parse(file).name}.jpg`; // Try to guess based on ID pattern or just generic?
-                    // Actually, we don't know the original ID if it was lost.
-                    // But if we just look for *any* jpg that isn't mapped...
-                    // For now, let's just leave thumbnail null or try to generate one?
-                    // Generating one might be heavy on startup. Let's skip for now.
-                }
 
                 this.jobs.set(id, job);
                 recoveredCount++;
@@ -155,8 +142,8 @@ class JobService {
     }
   }
 
-  createJob(id, clientId, file, mode = 'video', encodingMode = 'hardware') {
-    const job = {
+  createJob(id: string, clientId: string, file: any, mode: JobMode = 'video', encodingMode: EncodingMode = 'hardware'): ExtendedJob {
+    const job: ExtendedJob = {
       id,
       clientId,
       filename: file.originalname,
@@ -166,23 +153,25 @@ class JobService {
       progress: 0,
       process: null,
       thumbnail: null,
-      url: null,
+      url: undefined,
       error: null,
-      compressionRatio: null,
+      compressionRatio: 0,
       mode,
       encodingMode,
-      startTime: null,
-      endTime: null,
-      duration: null
+      startTime: undefined,
+      endTime: undefined,
+      conversionDuration: 0,
+      transcriptionText: undefined,
+      fetchedText: false
     };
     this.jobs.set(id, job);
-    this.saveJobs(); // Save immediately on creation
+    this.saveJobs();
     return job;
   }
 
-  createJobFromPath(id, clientId, filePath, mode = 'transcription') {
+  createJobFromPath(id: string, clientId: string, filePath: string, mode: JobMode = 'transcription'): ExtendedJob {
     const stats = fs.statSync(filePath);
-    const job = {
+    const job: ExtendedJob = {
       id,
       clientId,
       filename: path.basename(filePath),
@@ -192,39 +181,40 @@ class JobService {
       progress: 0,
       process: null,
       thumbnail: null,
-      url: null,
+      url: undefined,
       error: null,
-      compressionRatio: null,
+      compressionRatio: 0,
       mode,
-      startTime: null,
-      endTime: null,
-      duration: null
+      startTime: undefined,
+      endTime: undefined,
+      conversionDuration: 0,
+      transcriptionText: undefined,
+      fetchedText: false
     };
     this.jobs.set(id, job);
-    this.saveJobs(); // Save immediately
+    this.saveJobs();
     return job;
   }
 
-  getJob(id) {
+  getJob(id: string): ExtendedJob | undefined {
     return this.jobs.get(id);
   }
 
-  deleteJob(id) {
+  deleteJob(id: string): boolean {
     const result = this.jobs.delete(id);
-    if (result) this.saveJobs(); // Save on delete
+    if (result) this.saveJobs();
     return result;
   }
 
-  getAllJobs() {
+  getAllJobs(): ExtendedJob[] {
     return Array.from(this.jobs.values());
   }
 
-  getUserJobs(clientId) {
-    // Return jobs for this client OR recovered jobs
+  getUserJobs(clientId: string): ExtendedJob[] {
     return this.getAllJobs().filter(job => job.clientId === clientId || job.clientId === 'recovered');
   }
 
-  getNextQueuedJob() {
+  getNextQueuedJob(): ExtendedJob | null {
     for (const job of this.jobs.values()) {
       if (job.status === 'queued') {
         return job;

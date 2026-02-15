@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { Job } from '../types'
+import { t } from '../locales/i18n'
 
 export default function useUploadQueue(clientId: string, updateJob: (id: string, updates: Partial<Job>) => void) {
   const uploadQueue = useRef<Job[]>([])
@@ -43,7 +44,7 @@ export default function useUploadQueue(clientId: string, updateJob: (id: string,
       if (xhr.status === 200) {
         updateJob(job.id, { status: 'pending', progress: 0 }) // Server takes over
       } else {
-        let msg = 'Ошибка загрузки'
+        let msg = t('app.upload.error_generic')
         try { msg = JSON.parse(xhr.responseText).error || msg } catch (e) { }
         updateJob(job.id, { status: 'error', error: msg })
       }
@@ -53,7 +54,7 @@ export default function useUploadQueue(clientId: string, updateJob: (id: string,
 
     xhr.onerror = () => {
       activeUploads.current.delete(job.id)
-      updateJob(job.id, { status: 'error', error: 'Network Error' })
+      updateJob(job.id, { status: 'error', error: t('app.upload.network_error') })
       isUploading.current = false
       processUploadQueue()
     }

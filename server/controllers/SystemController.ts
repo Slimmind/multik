@@ -1,7 +1,8 @@
 import fs from 'fs';
+import type { Request, Response } from 'express';
 
 class SystemController {
-  getSystemInfo(req, res) {
+  getSystemInfo(req: Request, res: Response): void {
     let isRPi = false;
     try {
       if (fs.existsSync('/proc/device-tree/model')) {
@@ -13,9 +14,6 @@ class SystemController {
     } catch (e) {
       console.error('Error checking system info:', e);
     }
-
-    // For testing purposes, you can uncomment this to simulate RPi
-    // isRPi = true;
 
     res.json({ isRPi });
   }

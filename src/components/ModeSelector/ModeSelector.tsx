@@ -1,5 +1,6 @@
 import React from 'react'
 import { JobMode } from '../../types'
+import { t } from '../../locales/i18n'
 import './mode-selector.styles.css'
 
 interface ModeSelectorProps {
@@ -18,7 +19,7 @@ export const ModeSelector = ({ mode, setMode }: ModeSelectorProps) => {
         checked={mode === 'video'}
         onChange={() => setMode('video')}
       />
-      <label htmlFor="mode-video">Конвертация (MP4)</label>
+      <label htmlFor="mode-video">{t('app.modes.video')}</label>
 
       <input
         type="radio"
@@ -28,7 +29,7 @@ export const ModeSelector = ({ mode, setMode }: ModeSelectorProps) => {
         checked={mode === 'audio'}
         onChange={() => setMode('audio')}
       />
-      <label htmlFor="mode-audio">Извлечение аудио</label>
+      <label htmlFor="mode-audio">{t('app.modes.audio')}</label>
 
       <input
         type="radio"
@@ -38,7 +39,7 @@ export const ModeSelector = ({ mode, setMode }: ModeSelectorProps) => {
         checked={mode === 'transcription'}
         onChange={() => setMode('transcription')}
       />
-      <label htmlFor="mode-transcription">Транскрибация</label>
+      <label htmlFor="mode-transcription">{t('app.modes.transcription')}</label>
     </div>
   )
 }

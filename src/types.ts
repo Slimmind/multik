@@ -1,4 +1,4 @@
-export type JobStatus = 'pending' | 'uploading' | 'queued' | 'processing' | 'completed' | 'error';
+export type JobStatus = 'pending' | 'uploading' | 'queued' | 'processing' | 'completed' | 'error' | 'cancelled';
 export type JobMode = 'video' | 'audio' | 'transcription';
 export type EncodingMode = 'software' | 'hardware';
 

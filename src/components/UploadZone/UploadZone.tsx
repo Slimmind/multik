@@ -1,5 +1,6 @@
 import React, { useRef, useState, ChangeEvent, DragEvent } from 'react'
 import { JobMode } from '../../types'
+import { t } from '../../locales/i18n'
 import './upload-zone.styles.css'
 
 interface UploadZoneProps {
@@ -65,13 +66,18 @@ export const UploadZone = ({ onFilesSelected, mode }: UploadZoneProps) => {
       if (invalidFiles.length > 0) {
         const modeName =
           mode === 'transcription'
-            ? 'Транскрибация'
+            ? t('app.modes.transcription')
             : mode === 'audio'
-              ? 'Извлечение аудио'
-              : 'Конвертация видео'
-        const expected = mode === 'transcription' ? 'аудио' : 'видео'
+              ? t('app.modes.audio')
+              : t('app.modes.video_full')
+        const expected = mode === 'transcription' ? t('app.modes.expected_audio') : t('app.modes.expected_video')
+
+        const alertText = t('app.upload.alert_text')
+          .replace('{mode}', modeName)
+          .replace('{expected}', expected)
+
         alert(
-          `Вкладка "${modeName}" принимает только ${expected} файлы.\n\nПропущены файлы:\n${invalidFiles.join(
+          `${alertText}\n\n${t('app.upload.alert_skipped')}\n${invalidFiles.join(
             '\n'
           )}`
         )
@@ -92,7 +98,7 @@ export const UploadZone = ({ onFilesSelected, mode }: UploadZoneProps) => {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <p>Перетащите файлы сюда или кликните для выбора</p>
+      <p>{t('app.upload.drop_hint')}</p>
       <input
         type="file"
         ref={fileInputRef}

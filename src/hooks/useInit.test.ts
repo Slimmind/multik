@@ -1,42 +1,57 @@
-import { renderHook, act } from '@testing-library/react'
-import { describe, it, expect, beforeEach, jest } from 'bun:test'
+import { renderHook, waitFor, act } from '@testing-library/react'
+import { describe, it, expect, beforeEach, mock } from 'bun:test'
 import useInit from './useInit'
+
+// Mock fetch globally
+global.fetch = mock(() => Promise.resolve({
+  ok: true,
+  json: () => Promise.resolve({ isRPi: false })
+})) as any;
 
 describe('useInit Hook', () => {
   beforeEach(() => {
     localStorage.clear()
-    jest.clearAllMocks()
-
     // Mock matchMedia
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
-      value: jest.fn().mockImplementation(query => ({
+      value: mock().mockImplementation(query => ({
         matches: false,
         media: query,
         onchange: null,
-        addListener: jest.fn(),
-        removeListener: jest.fn(),
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
-        dispatchEvent: jest.fn(),
+        addListener: mock(),
+        removeListener: mock(),
+        addEventListener: mock(),
+        removeEventListener: mock(),
+        dispatchEvent: mock(),
       })),
     })
   })
 
-  it('should initialize clientId from localStorage', () => {
+  it('should initialize clientId from localStorage', async () => {
     localStorage.setItem('multik_client_id', 'test-client-id')
     const { result } = renderHook(() => useInit())
-    expect(result.current.clientId).toBe('test-client-id')
+
+    await waitFor(() => {
+        expect(result.current.clientId).toBe('test-client-id')
+    })
   })
 
-  it('should generate a new clientId if none exists', () => {
+  it('should generate a new clientId if none exists', async () => {
     const { result } = renderHook(() => useInit())
-    expect(result.current.clientId).toMatch(/^client-/)
+
+    await waitFor(() => {
+        expect(result.current.clientId).toMatch(/^client-/)
+    })
     expect(localStorage.getItem('multik_client_id')).toBe(result.current.clientId)
   })
 
-  it('should toggle theme and update localStorage', () => {
+  it('should toggle theme and update localStorage', async () => {
     const { result } = renderHook(() => useInit())
+
+    await waitFor(() => {
+        expect(result.current.clientId).not.toBe('')
+    })
+
     expect(result.current.isDarkTheme).toBe(false)
 
     act(() => {

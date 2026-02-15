@@ -1,14 +1,21 @@
 import { spawn } from 'bun';
 import path from 'path';
 import { unlink } from 'node:fs/promises';
+import config from '../config.ts';
+import type { Job } from '../../src/types.ts';
+
+type ThumbnailCallback = (error: Error | null, url?: string) => void;
+type ProgressCallback = (progress: number) => void;
+type CompleteCallback = (url: string, ratio: number | null) => void;
+type ErrorCallback = (type: string, message?: string) => void;
 
 class FFmpegService {
-  timeToSeconds(timeStr) {
+  private timeToSeconds(timeStr: string): number {
     const [h, m, s] = timeStr.split(':').map(parseFloat);
     return h * 3600 + m * 60 + s;
   }
 
-  async generateThumbnail(job, callback) {
+  async generateThumbnail(job: any, callback: ThumbnailCallback): Promise<void> {
     const thumbnailName = `thumb-${job.id}.jpg`;
     const outputDir = path.resolve('output');
     const thumbnailPath = path.join(outputDir, thumbnailName);
@@ -21,7 +28,7 @@ class FFmpegService {
       '-ss', '00:00:00.500',
       '-i', inputPath,
       '-vframes', '1',
-      '-vf', 'scale=320:-1',
+      '-vf', `scale=${config.ffmpeg.thumbnailWidth}:-1`,
       '-q:v', '2',
       '-y',
       thumbnailPath
@@ -49,20 +56,25 @@ class FFmpegService {
         console.error(`[FFmpeg] Stderr: ${stderr}`);
         callback(new Error(stderr));
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('[FFmpeg] Thumbnail spawn error:', e);
       callback(e);
     }
   }
 
-  async convert(job, onProgress, onComplete, onError) {
+  async convert(
+    job: any,
+    onProgress: ProgressCallback,
+    onComplete: CompleteCallback,
+    onError: ErrorCallback
+  ): Promise<void> {
     const originalName = path.parse(job.filename).name;
     const extension = job.mode === 'audio' ? '.mp3' : '.mp4';
     const outputFile = path.join('output', `${originalName}${extension}`);
 
     console.log(`Starting conversion for job ${job.id}, file: ${job.inputPath}`);
 
-    const ffmpegArgs = ['-threads', '4', '-i', job.inputPath];
+    const ffmpegArgs = ['-threads', String(config.ffmpeg.threads), '-i', job.inputPath];
 
     if (job.mode === 'audio') {
       ffmpegArgs.push(
@@ -72,21 +84,19 @@ class FFmpegService {
       );
     } else {
        if (job.encodingMode === 'software') {
-           // Software encoding (CPU)
            ffmpegArgs.push(
                '-c:v', 'libx264',
-               '-preset', 'fast',
-               '-threads', '4',
-               '-x264-params', 'threads=4',
+               '-preset', config.ffmpeg.videoPreset,
+               '-threads', String(config.ffmpeg.threads),
+               '-x264-params', `threads=${config.ffmpeg.threads}`,
                '-c:a', 'aac'
            );
        } else {
-           // Hardware encoding (default)
            ffmpegArgs.push(
             '-vf', 'fps=30,scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p',
             '-pix_fmt', 'yuv420p',
             '-c:v', 'h264_v4l2m2m',
-            '-b:v', '10M',
+            '-b:v', config.ffmpeg.videoBitrate,
             '-c:a', 'aac'
           );
        }
@@ -103,12 +113,11 @@ class FFmpegService {
 
       job.process = proc;
 
-      let duration = null;
+      let duration: number | null = null;
       let lastProgress = -1;
-      let stderrLog = [];
+      let stderrLog: string[] = [];
       const MAX_LOG_LINES = 50;
 
-      // Stream reader logic for stderr
       const reader = proc.stderr.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -176,16 +185,11 @@ class FFmpegService {
         }
       };
 
-      // Start processing output but don't await blocking the main flow
       processOutput();
 
       const exitCode = await proc.exited;
       job.process = null;
 
-      // Wait a bit to ensure all output is processed if needed,
-      // though typically await proc.exited handles process termination.
-
-      // Cleanup input file
       try { await unlink(job.inputPath); } catch(e) {}
 
       if (proc.signalCode === 'SIGKILL' || proc.signalCode === 'SIGTERM') {
@@ -193,7 +197,7 @@ class FFmpegService {
           onError('cancelled');
       } else if (exitCode === 0) {
         const url = `/output/${path.basename(outputFile)}`;
-        let ratio = 0;
+        let ratio: number | null = 0;
         try {
           if (job.mode !== 'audio') {
             const newSize = Bun.file(outputFile).size;
@@ -212,7 +216,7 @@ class FFmpegService {
         onError('failed', stderrLog.join('\n'));
       }
 
-    } catch (e) {
+    } catch (e: any) {
       console.error(`[FFmpeg] Spawn error for job ${job.id}:`, e);
       onError('failed', e.message);
     }

@@ -1,18 +1,14 @@
 import path from 'path';
 import { unlink } from 'node:fs/promises';
-import { fileURLToPath } from 'url';
-import jobService from '../services/JobService.js';
-import ffmpegService from '../services/FFmpegService.js';
-import queueService from '../services/QueueService.js';
-import socketHandler from '../socket/SocketHandler.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import type { Request, Response } from 'express';
+import jobService from '../services/JobService.ts';
+import ffmpegService from '../services/FFmpegService.ts';
+import queueService from '../services/QueueService.ts';
+import socketHandler from '../socket/SocketHandler.ts';
+import config from '../config.ts';
 
 class JobController {
-  // ... methods ...
-
-  getJobs(req, res) {
+  getJobs(req: Request, res: Response): void {
     const { clientId } = req.params;
     const userJobs = jobService.getUserJobs(clientId).map(job => ({
       id: job.id,
@@ -26,30 +22,34 @@ class JobController {
       mode: job.mode || 'video',
       startTime: job.startTime,
       endTime: job.endTime,
-      duration: job.duration,
-      conversionDuration: job.conversionDuration // For backward compatibility if needed, or if separate logic exists
+      duration: job.duration
     }));
     res.json(userJobs);
   }
 
-  upload(req, res) {
+  upload(req: Request, res: Response): void {
     try {
-        if (!req.file) return res.status(400).json({ error: 'Нет файла' });
+        if (!req.file) {
+            res.status(400).json({ error: 'Нет файла' });
+            return;
+        }
 
         const clientId = req.body.clientId;
         const jobId = req.body.jobId;
         const mode = req.body.mode || 'video';
         const encodingMode = req.body.encodingMode || 'hardware';
 
-        if (!clientId || !jobId) return res.status(400).json({ error: 'Нет clientId или jobId' });
+        if (!clientId || !jobId) {
+            res.status(400).json({ error: 'Нет clientId или jobId' });
+            return;
+        }
 
         const job = jobService.createJob(jobId, clientId, req.file, mode, encodingMode);
         res.json({ status: 'queued' });
 
-        // Generate thumbnail asynchronously only for video
         if (mode === 'video') {
           ffmpegService.generateThumbnail(job, (err, url) => {
-            if (!err) {
+            if (!err && url) {
               job.thumbnail = url;
               socketHandler.emitToClient(clientId, 'thumbnail', { id: jobId, url });
               console.log(`Thumbnail generated for ${jobId}`);
@@ -60,36 +60,42 @@ class JobController {
         }
 
         queueService.processQueue();
-    } catch (e) {
+    } catch (e: any) {
         console.error('Upload error:', e);
-        // If headers not sent
         if (!res.headersSent) {
             res.status(500).json({ error: 'Internal Server Error during upload', details: e.message });
         }
     }
   }
 
-  cancel(req, res) {
+  cancel(req: Request, res: Response): void {
     const { jobId } = req.body;
-    if (!jobId) return res.status(400).json({ error: 'Нет jobId' });
+    if (!jobId) {
+        res.status(400).json({ error: 'Нет jobId' });
+        return;
+    }
 
     const result = queueService.cancelJob(jobId);
     if (result) {
-      return res.json({ status: 'cancelled' });
+      res.json({ status: 'cancelled' });
+      return;
     }
 
-    // If queueService didn't find it or couldn't cancel, check if it exists at all
     const job = jobService.getJob(jobId);
     if (job) {
-      return res.json({ status: job.status });
+      res.json({ status: job.status });
+      return;
     }
 
     res.status(404).json({ error: 'Процесс не найден' });
   }
 
-  async delete(req, res) {
+  async delete(req: Request, res: Response): Promise<void> {
     const { jobId } = req.body;
-    if (!jobId) return res.status(400).json({ error: 'Нет jobId' });
+    if (!jobId) {
+        res.status(400).json({ error: 'Нет jobId' });
+        return;
+    }
 
     const job = jobService.getJob(jobId);
     if (job) {
@@ -97,12 +103,9 @@ class JobController {
 
       jobService.deleteJob(jobId);
 
-      // Helper to safely delete files
-      const safeUnlink = async (filePath, type) => {
+      const safeUnlink = async (filePath: string | undefined | null, type: string) => {
         if (!filePath) return;
-        // Ensure absolute path if not already
-        // JobService/FFmpegService seem to store relative paths like 'output/file.mp4' or absolute paths.
-        const targetPath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
+        const targetPath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath.startsWith('/') ? '.' + filePath : filePath);
 
         try {
             if (await Bun.file(targetPath).exists()) {
@@ -118,48 +121,50 @@ class JobController {
       await safeUnlink(job.thumbnail, 'thumbnail');
       await safeUnlink(job.inputPath, 'input file');
 
-      return res.json({ status: 'deleted' });
+      res.json({ status: 'deleted' });
+      return;
     }
 
     res.status(404).json({ error: 'Задание не найдено' });
   }
 
-  async transcribe(req, res) {
+  async transcribe(req: Request, res: Response): Promise<void> {
     const { jobId, audioUrl, clientId } = req.body;
     if (!jobId || !audioUrl || !clientId) {
-      return res.status(400).json({ error: 'Нет jobId, audioUrl или clientId' });
+      res.status(400).json({ error: 'Нет jobId, audioUrl или clientId' });
+      return;
     }
 
-    // audioUrl is like "/output/filename.mp3"
-    // Convert to file system path
     const audioPath = path.resolve('.' + audioUrl);
 
     if (!(await Bun.file(audioPath).exists())) {
-      return res.status(404).json({ error: 'Аудиофайл не найден' });
+      res.status(404).json({ error: 'Аудиофайл не найден' });
+      return;
     }
 
-    // Create a transcription job using the existing audio file
     const job = jobService.createJobFromPath(jobId, clientId, audioPath, 'transcription');
     res.json({ status: 'queued' });
 
     queueService.processQueue();
   }
 
-  async correctText(req, res) {
+  async correctText(req: Request, res: Response): Promise<void> {
     const { text } = req.body;
 
     if (!text) {
-      return res.status(400).json({ error: 'Нет текста для обработки' });
+      res.status(400).json({ error: 'Нет текста для обработки' });
+      return;
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = config.gemini.apiKey;
     if (!apiKey) {
-      return res.status(500).json({ error: 'API ключ не настроен' });
+      res.status(500).json({ error: 'API ключ не настроен' });
+      return;
     }
 
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${config.gemini.model}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -176,10 +181,11 @@ class JobController {
       if (!response.ok) {
         const errorData = await response.text();
         console.error('Gemini API error:', errorData);
-        return res.status(500).json({ error: 'Ошибка API' });
+        res.status(500).json({ error: 'Ошибка API' });
+        return;
       }
 
-      const data = await response.json();
+      const data: any = await response.json();
       const correctedText = data.candidates?.[0]?.content?.parts?.[0]?.text || text;
 
       res.json({ correctedText });

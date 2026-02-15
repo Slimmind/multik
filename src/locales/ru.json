@@ -1,0 +1,66 @@
+{
+  "app": {
+    "title": "Multik",
+    "encoding_mode": {
+      "label": "Режим кодирования",
+      "software": "Программный (CPU)",
+      "hardware": "Аппаратный (GPU)",
+      "disabled_hint": "Режим заблокирован во время обработки или на сторонних устройствах"
+    },
+    "modes": {
+      "video": "Конвертация (MP4)",
+      "video_full": "Конвертация видео",
+      "audio": "Извлечение аудио",
+      "transcription": "Транскрибация",
+      "expected_video": "видео",
+      "expected_audio": "аудио"
+    },
+    "upload": {
+      "drop_hint": "Перетащите файлы сюда или кликните для выбора",
+      "error_generic": "Ошибка загрузки",
+      "error_type": "Недопустимый тип файла",
+      "error_size": "Файл слишком большой",
+      "network_error": "Ошибка сети",
+      "alert_text": "Вкладка \"{mode}\" принимает только {expected} файлы.",
+      "alert_skipped": "Пропущены файлы:"
+    },
+    "status": {
+      "pending": "В очереди",
+      "uploading": "Загрузка",
+      "queued": "Ожидание обработки...",
+      "processing": "Обработка",
+      "completed": "Готово",
+      "error": "Ошибка",
+      "cancelled": "Отменено",
+      "extracting": "Экстракция аудио...",
+      "transcribing": "Транскрибация...",
+      "converting": "Конвертация...",
+      "preparing": "Подготовка...",
+      "unknown_error": "Неизвестная ошибка"
+    },
+    "actions": {
+      "cancel": "Отмена",
+      "delete": "Удалить",
+      "retry": "Повторить",
+      "transcribe": "Транскрибировать",
+      "correct": "Исправить (AI)",
+      "download": "Скачать"
+    },
+    "job": {
+      "ratio": "сжато на",
+      "duration": "Длительность",
+      "loading_text": "Загрузка текста...",
+      "copy_tooltip": "Копировать",
+      "ai_tooltip": "AI обработка",
+      "no_file_retry": "Файл недоступен для повтора (обновите страницу и попробуйте загрузить заново)"
+    },
+    "footer": {
+      "rights": "All rights reserved."
+    },
+    "errors": {
+      "api_fail": "Ошибка API",
+      "network": "Ошибка сети",
+      "server_start_fail": "Сбой запуска"
+    }
+  }
+}

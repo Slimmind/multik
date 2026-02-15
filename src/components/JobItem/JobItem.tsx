@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Job } from '../../types'
+import { t } from '../../locales/i18n'
 import './job-item.styles.css'
 
 interface JobItemProps {
@@ -54,20 +55,20 @@ export const JobItem = ({ job, onDelete, onCancel, onRetry, onTranscribe, onCorr
 
   // Helpers for status text
   const getStatusText = () => {
-    if (job.status === 'uploading') return `Загрузка... ${job.progress}%`
-    if (job.status === 'queued') return 'Ожидание обработки...'
+    if (job.status === 'uploading') return `${t('app.status.uploading')}... ${job.progress}%`
+    if (job.status === 'queued') return t('app.status.queued')
     if (job.status === 'processing') {
-      if (job.mode === 'transcription') return `Транскрибация... ${job.progress}%`
-      if (job.mode === 'audio') return `Экстракция аудио... ${job.progress}%`
-      return `Конвертация... ${job.progress}%`
+      if (job.mode === 'transcription') return `${t('app.status.transcribing')} ${job.progress}%`
+      if (job.mode === 'audio') return `${t('app.status.extracting')} ${job.progress}%`
+      return `${t('app.status.converting')} ${job.progress}%`
     }
     if (job.status === 'completed') {
-      let text = 'Готово'
-      if (job.compressionRatio) text += ` (сжато на ${job.compressionRatio}%)`
+      let text = t('app.status.completed')
+      if (job.compressionRatio) text += ` (${t('app.job.ratio')} ${job.compressionRatio}%)`
       return text
     }
-    if (job.status === 'error') return `Ошибка: ${job.error || 'Неизвестная ошибка'}`
-    return 'Ожидание загрузки...'
+    if (job.status === 'error') return `${t('app.status.error')}: ${job.error || t('app.status.unknown_error')}`
+    return t('app.status.pending')
   }
 
   const handleCopy = async () => {
@@ -127,7 +128,7 @@ export const JobItem = ({ job, onDelete, onCancel, onRetry, onTranscribe, onCorr
 
               {/* Delete Button */}
               {(job.status === 'completed' || job.status === 'error') && (
-                <button className="delete-btn" onClick={() => onDelete(job.id)} title="Удалить">
+                <button className="delete-btn" onClick={() => onDelete(job.id)} title={t('app.actions.delete')}>
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                     <path
                       d="M11 3.5L10.5 12C10.5 12.5 10 13 9.5 13H4.5C4 13 3.5 12.5 3.5 12L3 3.5M5.5 3.5V2C5.5 1.5 6 1 6.5 1H7.5C8 1 8.5 1.5 8.5 2V3.5M1.5 3.5H12.5M5.5 6V10.5M8.5 6V10.5"
@@ -145,7 +146,7 @@ export const JobItem = ({ job, onDelete, onCancel, onRetry, onTranscribe, onCorr
                  <span className={`file-status ${job.status}`}>
                   {getStatusText()}
                   {job.status === 'completed' && job.url && (
-                    <a href={job.url} download className="download-link"> Скачать</a>
+                    <a href={job.url} download className="download-link"> {t('app.actions.download')}</a>
                   )}
                  </span>
               </div>
@@ -160,10 +161,10 @@ export const JobItem = ({ job, onDelete, onCancel, onRetry, onTranscribe, onCorr
 
             <div className="actions">
               {job.status === 'uploading' && (
-                <button className="cancel-btn" onClick={() => onCancel(job.id)}>Отмена</button>
+                <button className="cancel-btn" onClick={() => onCancel(job.id)}>{t('app.actions.cancel')}</button>
               )}
               {job.status === 'error' && (
-                <button className="retry-btn" onClick={() => onRetry(job.id)}>Повторить</button>
+                <button className="retry-btn" onClick={() => onRetry(job.id)}>{t('app.actions.retry')}</button>
               )}
 
               {/* Audio -> Transcribe Checkbox */}
@@ -178,7 +179,7 @@ export const JobItem = ({ job, onDelete, onCancel, onRetry, onTranscribe, onCorr
                       if (e.target.checked && job.url) onTranscribe(job.id, job.url);
                     }}
                   />
-                  <label htmlFor={`transcribe-${job.id}`}>Транскрибировать</label>
+                  <label htmlFor={`transcribe-${job.id}`}>{t('app.actions.transcribe')}</label>
                 </div>
               )}
 
@@ -201,12 +202,12 @@ export const JobItem = ({ job, onDelete, onCancel, onRetry, onTranscribe, onCorr
                 className="transcription-result"
                 readOnly
                 value={job.transcriptionText || ''}
-                placeholder={job.transcriptionText ? '' : "Загрузка текста..."}
+                placeholder={job.transcriptionText ? '' : t('app.job.loading_text')}
               />
               <div className="textarea-actions">
                 <button
                   className={`textarea-btn ai-btn ${isAiProcessing ? 'processing' : ''} ${aiSuccess ? 'success' : ''} ${aiError ? 'error' : ''}`}
-                  title="AI обработка"
+                  title={t('app.job.ai_tooltip')}
                   onClick={handleAiCorrection}
                   disabled={isAiProcessing}
                 >
@@ -218,7 +219,7 @@ export const JobItem = ({ job, onDelete, onCancel, onRetry, onTranscribe, onCorr
                 </button>
                 <button
                   className={`textarea-btn copy-btn ${isCopying ? 'copied' : ''}`}
-                  title="Копировать"
+                  title={t('app.job.copy_tooltip')}
                   onClick={handleCopy}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">

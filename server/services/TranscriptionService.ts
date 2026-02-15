@@ -1,13 +1,20 @@
 import { spawn } from 'bun';
 import path from 'path';
 import { unlink, rename } from 'node:fs/promises';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+type ProgressCallback = (progress: number) => void;
+type CompleteCallback = (url: string, ratio: number | null) => void;
+type ErrorCallback = (type: string, message?: string) => void;
+type StatusCallback = (status: string) => void;
 
 class TranscriptionService {
-  async transcribe(job, onProgress, onComplete, onError, onStatus) {
+  async transcribe(
+    job: any,
+    onProgress: ProgressCallback,
+    onComplete: CompleteCallback,
+    onError: ErrorCallback,
+    onStatus: StatusCallback
+  ): Promise<void> {
     const originalName = path.parse(job.filename).name;
     const outputFile = path.join('output', `${originalName}.txt`);
     const scriptPath = path.resolve('server/scripts/transcribe.py');
@@ -41,13 +48,13 @@ class TranscriptionService {
 
       job.process = proc;
 
-      let stderrLog = [];
+      let stderrLog: string[] = [];
       let progress = 0;
-      let progressInterval = null;
+      let progressInterval: any = null;
       let startTime = 0;
       const PROCESSING_FACTOR = 0.2;
 
-      const startProgressSimulation = (duration) => {
+      const startProgressSimulation = (duration: number) => {
         if (progressInterval) clearInterval(progressInterval);
 
         const estimatedProcessingTime = duration * PROCESSING_FACTOR;
@@ -71,7 +78,6 @@ class TranscriptionService {
         job.process = null;
       };
 
-      // Readers for stdout and stderr
       const stdoutReader = proc.stdout.getReader();
       const stderrReader = proc.stderr.getReader();
       const decoder = new TextDecoder();
@@ -85,7 +91,7 @@ class TranscriptionService {
             buffer += decoder.decode(value, { stream: true });
 
             const lines = buffer.split('\n');
-            buffer = lines.pop() || ''; // keep last incomplete chunk
+            buffer = lines.pop() || '';
 
             for (let line of lines) {
               line = line.trim();
@@ -118,7 +124,6 @@ class TranscriptionService {
             const { done, value } = await stderrReader.read();
             if (done) break;
 
-            // Just decode and push logs line by line
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
             buffer = lines.pop() || '';
@@ -193,7 +198,7 @@ class TranscriptionService {
         onError('failed', stderrLog.join('\n'));
       }
 
-    } catch (e) {
+    } catch (e: any) {
       console.error(`[Transcription] Spawn error:`, e);
       onError('failed', e.message);
     }
