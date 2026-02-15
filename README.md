@@ -6,7 +6,7 @@ The project features a modern React frontend built with Vite and a streamlined, 
 
 ## Features
 
-- **Video to Audio Conversion**: Upload video files and convert them to high-quality MP3.
+- **Video to Audio Conversion**: Upload video files and convert them to high-quality AAC.
 - **Audio to Text Transcription**: Transcribe audio files using OpenAI Whisper (local execution via Python).
 - **AI Text Correction**: Automated error correction using Google Gemini AI.
 - **Real-time Progress**: Live tracking via Socket.IO.

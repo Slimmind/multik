@@ -69,7 +69,7 @@ class FFmpegService {
     onError: ErrorCallback
   ): Promise<void> {
     const originalName = path.parse(job.filename).name;
-    const extension = job.mode === 'audio' ? '.mp3' : '.mp4';
+    const extension = job.mode === 'audio' ? '.aac' : '.mp4';
     const outputFile = path.join('output', `${originalName}${extension}`);
 
     console.log(`Starting conversion for job ${job.id}, file: ${job.inputPath}`);
@@ -79,8 +79,8 @@ class FFmpegService {
     if (job.mode === 'audio') {
       ffmpegArgs.push(
         '-vn',
-        '-c:a', 'libmp3lame',
-        '-q:a', '2'
+        '-c:a', 'aac',
+        '-b:a', '192k'
       );
     } else {
        if (job.encodingMode === 'software') {
