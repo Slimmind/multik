@@ -91,7 +91,7 @@ class JobService {
             const filePath = path.join(OUTPUT_DIR, file);
             const ext = path.extname(file).toLowerCase();
             const isVideo = ['.mp4', '.mov', '.avi', '.mkv', '.webm'].includes(ext);
-            const isAudio = ['.mp3', '.wav', '.ogg', '.m4a'].includes(ext);
+            const isAudio = ['.mp3', '.wav', '.ogg', '.m4a', '.aac'].includes(ext);
             const isText = ['.txt', '.srt', '.vtt', '.json', '.md'].includes(ext);
 
             if (!isVideo && !isAudio && !isText) continue;
