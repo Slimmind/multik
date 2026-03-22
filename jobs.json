@@ -1,1 +1,19 @@
-[]
+[
+  {
+    "id": "job-1774337605559-in4svbn6n",
+    "clientId": "client-1774019268901-013wneadp",
+    "filename": "Лекция 8. Йод.mp3",
+    "inputPath": "uploads/Лекция 8. Йод.mp3",
+    "originalSize": 122571220,
+    "status": "processing",
+    "progress": 5,
+    "thumbnail": null,
+    "error": null,
+    "compressionRatio": 0,
+    "mode": "transcription",
+    "encodingMode": "hardware",
+    "startTime": 1774337616849,
+    "conversionDuration": 0,
+    "fetchedText": false
+  }
+]

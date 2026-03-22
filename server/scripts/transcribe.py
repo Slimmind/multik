@@ -1,248 +1,393 @@
 #!/usr/bin/env python3
-
 """
-Audio Transcription Script using OpenAI Whisper
-Transcribes single file or batch-processes all audio files in a directory.
-Supports Sequential (accurate) and Chunked (fast, parallel) modes.
+Audio Transcription Script using whisper.cpp
+Wrapper for Raspberry Pi / Ubuntu (ARM)
 """
 
-import torch
-import whisper
 import argparse
+import subprocess
+import sys
+import os
+import time
 from pathlib import Path
-import math
-import numpy as np
 import multiprocessing
-from concurrent.futures import ProcessPoolExecutor, as_completed
-import ssl
 
-# Disable SSL verification for corporate proxies
-try:
-    _create_unverified_https_context = ssl._create_unverified_context
-except AttributeError:
-    pass
-else:
-    ssl._create_default_https_context = _create_unverified_https_context
+# --- НАСТРОЙКИ ПУТЕЙ ---
+WHISPER_CPP_DIR = Path("/home/slim/whisper.cpp").resolve()
+MODELS_DIR = WHISPER_CPP_DIR / "models"
+MAIN_BINARY = None  # Будет найдено автоматически
 
-# Поддерживаемые аудио-расширения
 AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".wma", ".aac", ".opus"}
 
-def get_audio_files(directory: Path, extensions=None):
-    """Возвращает отсортированный список аудиофайлов в директории (без рекурсии)."""
-    extensions = extensions or AUDIO_EXTENSIONS
-    files = [f for f in directory.iterdir() if f.is_file() and f.suffix.lower() in extensions]
+MODEL_MAP = {
+    "tiny":   ("ggml-tiny.bin",   "tiny"),
+    "base":   ("ggml-base.bin",   "base"),
+    "small":  ("ggml-small.bin",  "small"),
+    "medium": ("ggml-medium.bin", "medium"),
+    "large":  ("ggml-large-v3.bin", "large"),
+}
+
+def find_whisper_binary():
+    """Поиск исполняемого файла whisper.cpp."""
+    candidates = [
+        WHISPER_CPP_DIR / "build" / "bin" / "whisper-cli",  # Новое имя
+        WHISPER_CPP_DIR / "build" / "bin" / "main",          # Старое имя
+        WHISPER_CPP_DIR / "whisper-cli",
+        WHISPER_CPP_DIR / "main",
+    ]
+    for path in candidates:
+        if path.exists() and os.access(path, os.X_OK):
+            return path
+    return None
+
+def check_setup():
+    """Проверка наличия бинарника и моделей."""
+    global MAIN_BINARY
+    MAIN_BINARY = find_whisper_binary()
+
+    if not MAIN_BINARY:
+        print(f"❌ Ошибка: Не найден исполняемый файл whisper.cpp")
+        print(f"💡 Попробуйте перекомпилировать:")
+        print(f"   cd {WHISPER_CPP_DIR} && cmake -B build -DGGML_NATIVE=OFF && cmake --build build --config Release")
+        sys.exit(1)
+
+    print(f"✅ Бинарник найден: {MAIN_BINARY}")
+
+    if not MODELS_DIR.exists():
+        print(f"❌ Ошибка: Не найдена папка моделей: {MODELS_DIR}")
+        sys.exit(1)
+
+def wait_for_file_complete(file_path: Path, timeout=60, interval=1):
+    """Ждем, пока файл перестанет расти (завершится загрузка)."""
+    if not file_path.exists():
+        return False
+    
+    last_size = -1
+    waited = 0
+    stable_count = 0  # Счетчик стабильных проверок
+    
+    while waited < timeout:
+        try:
+            current_size = file_path.stat().st_size
+            
+            if current_size == last_size and current_size > 0:
+                stable_count += 1
+                if stable_count >= 2:  # Файл не меняется 2 проверки подряд
+                    time.sleep(0.5)  # Небольшая страховка
+                    return True
+            else:
+                stable_count = 0
+            
+            last_size = current_size
+        except FileNotFoundError:
+            return False
+        
+        time.sleep(interval)
+        waited += interval
+    
+    print(f"⚠ Таймаут ожидания файла ({timeout}с). Пробуем обработать...")
+    return True
+
+def get_audio_duration(input_path: Path) -> float:
+    """Получение длительности аудиофайла в секундах."""
+    try:
+        probe_cmd = [
+            "ffprobe", "-v", "error", "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1", str(input_path)
+        ]
+        probe_res = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=10)
+        return float(probe_res.stdout.strip())
+    except Exception as e:
+        print(f"   ⚠ Ошибка получения длительности: {e}")
+        return 0.0
+
+def split_audio_into_chunks(input_path: Path, chunk_duration: int = 900, verbose: bool = False) -> list:
+    """
+    Разбиение аудиофайла на части через ffmpeg.
+    chunk_duration: длительность чанка в секундах (по умолчанию 15 минут = 900с)
+    Возвращает список путей к чанкам.
+    """
+    temp_dir = input_path.parent / f"_chunks_{input_path.stem}"
+    temp_dir.mkdir(exist_ok=True)
+    
+    chunk_pattern = temp_dir / f"chunk_%03d.wav"
+    
+    print(f"   ✂️ Разбиение на чанки по {chunk_duration}с...")
+    
+    # Конвертируем в WAV (16kHz, mono) — формат для whisper.cpp
+    # Используем -acodec pcm_s16le для корректного WAV-заголовка
+    cmd = [
+        "ffmpeg", "-y", "-i", str(input_path),
+        "-f", "segment",
+        "-segment_time", str(chunk_duration),
+        "-ar", "16000",
+        "-ac", "1",
+        "-acodec", "pcm_s16le",
+        "-reset_timestamps", "1",
+        "-avoid_negative_ts", "make_zero",
+        str(chunk_pattern)
+    ]
+    
+    if verbose:
+        print(f"   ⚙ {' '.join(cmd)}")
+    
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if result.returncode != 0:
+            print(f"   ❌ Ошибка разбиения ffmpeg")
+            if verbose:
+                print(f"   stderr: {result.stderr[:500]}")
+            return []
+        
+        chunks = sorted(temp_dir.glob("chunk_*.wav"))
+        if not chunks:
+            print(f"   ❌ Чанки не созданы")
+            if verbose:
+                print(f"   📁 Содержимое папки: {list(temp_dir.iterdir())}")
+            return []
+        
+        # Проверка размера чанков
+        for chunk in chunks:
+            size = chunk.stat().st_size
+            if size == 0:
+                print(f"   ⚠ Пустой чанк: {chunk.name}")
+        
+        print(f"   ✅ Создано чанков: {len(chunks)}")
+        return chunks
+    except subprocess.TimeoutExpired:
+        print(f"   ❌ Таймаут при разбиении аудио")
+        return []
+    except Exception as e:
+        print(f"   ❌ Исключение при разбиении: {e}")
+        return []
+
+def cleanup_chunks(chunks: list):
+    """Удаление временных чанков."""
+    if not chunks:
+        return
+    temp_dir = chunks[0].parent
+    try:
+        import shutil
+        shutil.rmtree(temp_dir)
+        print(f"   🧹 Чанки удалены")
+    except Exception as e:
+        print(f"   ⚠ Не удалось удалить чанки: {e}")
+
+def transcribe_chunk(chunk_path: Path, output_path: Path, model_name: str, language: str, verbose: bool) -> bool:
+    """Транскрибация одного чанка."""
+    if model_name not in MODEL_MAP:
+        return False
+
+    model_file, model_arg = MODEL_MAP[model_name]
+    model_path = MODELS_DIR / model_file
+
+    if not model_path.exists():
+        print(f"   ❌ Модель не найдена: {model_path}")
+        return False
+
+    # --no-gpu и --no-flash-attn для Raspberry Pi
+    cmd = [
+        str(MAIN_BINARY),
+        "-m", str(model_path),
+        "-f", str(chunk_path),
+        "-l", language,
+        "-otxt",
+        "-of", str(output_path.with_suffix('')),
+        "--no-timestamps",
+        "-t", str(multiprocessing.cpu_count()),
+        "--no-gpu",
+        "--no-flash-attn"
+    ]
+
+    if verbose:
+        print(f"   ⚙ {' '.join(cmd)}")
+
+    try:
+        # 30 минут на чанк (для Raspberry Pi)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=1800)
+
+        if result.returncode == 0:
+            return True
+        else:
+            print(f"   ❌ Ошибка whisper.cpp (код {result.returncode})")
+            # Выводим больше информации об ошибке
+            stderr_output = result.stderr.strip() if result.stderr else "нет stderr"
+            stdout_output = result.stdout.strip() if result.stdout else "нет stdout"
+            print(f"   stderr: {stderr_output[:500]}")
+            print(f"   stdout: {stdout_output[:500]}")
+            return False
+
+    except subprocess.TimeoutExpired:
+        print(f"   ❌ Таймаут транскрибации чанка")
+        return False
+    except Exception as e:
+        print(f"   ❌ Исключение: {e}")
+        return False
+
+def transcribe_file(input_path: Path, output_path: Path, model_name: str, language: str, verbose: bool):
+    """Вызов whisper.cpp для одного файла (с разбиением на чанки для длинных файлов)."""
+
+    if model_name not in MODEL_MAP:
+        print(f"❌ Неизвестная модель: {model_name}")
+        return False
+
+    model_file, model_arg = MODEL_MAP[model_name]
+    model_path = MODELS_DIR / model_file
+
+    if not model_path.exists():
+        print(f"❌ Модель не найдена: {model_path}")
+        print(f"💡 Скачайте: cd {WHISPER_CPP_DIR} && bash models/download-ggml-model.sh {model_arg}")
+        return False
+
+    # 1. Ждем завершения загрузки файла
+    print(f"   ⏳ Ожидание готовности файла...")
+    if not wait_for_file_complete(input_path, timeout=60):
+        print(f"   ❌ Файл не найден")
+        return False
+
+    # 2. Получаем длительность
+    print(f"[STATUS] processing", flush=True)
+    duration = get_audio_duration(input_path)
+    print(f"[DURATION] {duration}", flush=True)
+    
+    if duration <= 0:
+        print(f"   ⚠ Не удалось получить длительность, пробуем обработать как есть...")
+
+    # 3. Решаем, нужно ли разбиение (порог 15 минут = 900с)
+    CHUNK_DURATION = 300  # 5 минут для теста
+    needs_splitting = duration > CHUNK_DURATION
+    
+    if needs_splitting:
+        print(f"   📊 Длительность {duration:.0f}с > {CHUNK_DURATION}с, используем разбиение...")
+        
+        chunks = split_audio_into_chunks(input_path, chunk_duration=CHUNK_DURATION, verbose=verbose)
+        if not chunks:
+            print(f"   ❌ Не удалось разбить файл, пробуем обработать целиком...")
+            needs_splitting = False
+        else:
+            # Транскрибируем каждый чанк
+            all_results = []
+            for i, chunk in enumerate(chunks, 1):
+                print(f"   🎯 Чанк {i}/{len(chunks)}: {chunk.name} ({chunk.stat().st_size} байт)...", flush=True)
+                chunk_output = output_path.parent / f"_chunk_{i}.txt"
+                
+                if transcribe_chunk(chunk, chunk_output, model_name, language, verbose):
+                    all_results.append(chunk_output)
+                else:
+                    print(f"   ⚠ Чанк {i} не обработан")
+                    cleanup_chunks(chunks)
+                    return False
+            
+            # Склеиваем результаты
+            try:
+                with open(output_path, 'w', encoding='utf-8') as outfile:
+                    for chunk_output in all_results:
+                        with open(chunk_output, 'r', encoding='utf-8') as infile:
+                            outfile.write(infile.read())
+                            outfile.write("\n")
+                        chunk_output.unlink()  # Удаляем временный файл
+                
+                print(f"   ✅ Чанки склеены")
+                cleanup_chunks(chunks)
+                return True
+            except Exception as e:
+                print(f"   ❌ Ошибка склейки: {e}")
+                cleanup_chunks(chunks)
+                return False
+    
+    # 4. Обработка без разбиения (короткий файл)
+    # --no-gpu и --no-flash-attn для Raspberry Pi
+    cmd = [
+        str(MAIN_BINARY),
+        "-m", str(model_path),
+        "-f", str(input_path),
+        "-l", language,
+        "-otxt",
+        "-of", str(output_path.with_suffix('')),
+        "--no-timestamps",
+        "-t", str(multiprocessing.cpu_count()),
+        "--no-gpu",
+        "--no-flash-attn"
+    ]
+
+    if verbose:
+        print(f"   ⚙ {' '.join(cmd)}")
+
+    try:
+        # Увеличено время ожидания с 600 до 7200 секунд (2 часа) для Raspberry Pi
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=7200)
+
+        if result.returncode == 0:
+            if verbose:
+                print(f"   ✅ Успешно")
+            return True
+        else:
+            print(f"   ❌ Ошибка whisper.cpp (код {result.returncode})")
+            if verbose and result.stderr:
+                print(f"   {result.stderr.strip()[:500]}")
+            return False
+
+    except subprocess.TimeoutExpired:
+        print(f"   ❌ Таймаут транскрибации")
+        return False
+    except Exception as e:
+        print(f"   ❌ Исключение: {e}")
+        return False
+
+def get_audio_files(directory: Path):
+    """Возвращает отсортированный список аудиофайлов."""
+    if not directory.is_dir():
+        return []
+    files = [f for f in directory.iterdir() if f.is_file() and f.suffix.lower() in AUDIO_EXTENSIONS]
     return sorted(files)
 
-# --- Chunked Processing Logic ---
-
-worker_model = None
-
-def _init_worker(model_name):
-    """Инициализация воркера: загрузка модели один раз на процесс."""
-    global worker_model
-    # print(f"[WORKER] Загрузка модели {model_name} в процессе {multiprocessing.current_process().name}...")
-    worker_model = whisper.load_model(model_name)
-
-def _process_chunk(chunk_data, language):
-    """Обработка одного куска аудио в отдельном процессе."""
-    # chunk_data - numpy array
-    global worker_model
-    try:
-        # Для whisper.transcribe нужен float32 numpy array
-        result = worker_model.transcribe(chunk_data, language=language)
-        return result["text"].strip()
-    except Exception as e:
-        return f"[ERROR: {e}]"
-
-def transcribe_file_chunked(audio_path: Path, model_name, language, chunk_size_sec=60, workers=2, verbose=False, output_path=None):
-    """Транскрибация файла по кускам (параллельно)."""
-    try:
-        print(f"[STATUS] PREPARING CHUNKED ({workers} workers, {chunk_size_sec}s chunks)", flush=True)
-        print(f"⚙ Транскрибация: {audio_path.name}", flush=True)
-
-        # 1. Загружаем аудио целиком
-        audio = whisper.load_audio(str(audio_path))
-        sample_rate = whisper.audio.SAMPLE_RATE
-        total_duration = audio.shape[0] / sample_rate
-        print(f"[DURATION] {total_duration:.2f}s", flush=True)
-
-        if total_duration < chunk_size_sec:
-             # Если файл короче куска, проще обработать последовательно (но через ту же логику)
-             chunks = [audio]
-        else:
-            # 2. Разбиваем на куски
-            chunk_samples = int(chunk_size_sec * sample_rate)
-            chunks = []
-            for i in range(0, len(audio), chunk_samples):
-                chunks.append(audio[i : i + chunk_samples])
-            print(f"[CHUNKS] Файл разбит на {len(chunks)} частей", flush=True)
-
-        # 3. Запускаем параллельную обработку
-        # Используем ProcessPoolExecutor
-        full_text_parts = [None] * len(chunks)
-
-        # NOTE: max_workers не должен превышать количество чанков, иначе зря поднимем процессы
-        actual_workers = min(workers, len(chunks))
-
-        with ProcessPoolExecutor(max_workers=actual_workers, initializer=_init_worker, initargs=(model_name,)) as executor:
-            futures = {}
-            for i, chunk in enumerate(chunks):
-                future = executor.submit(_process_chunk, chunk, language)
-                futures[future] = i
-
-            for future in as_completed(futures):
-                idx = futures[future]
-                try:
-                    text_part = future.result()
-                    full_text_parts[idx] = text_part
-                    if verbose:
-                        print(f"  [Chunk {idx+1}/{len(chunks)}] ok")
-                except Exception as e:
-                     print(f"❌ Ошибка в куске {idx+1}: {e}")
-                     full_text_parts[idx] = ""
-
-        final_text = " ".join([t for t in full_text_parts if t])
-
-        if output_path:
-            output_path.write_text(final_text, encoding="utf-8")
-            print(f"✅ Сохранено: {output_path}", flush=True)
-        return True
-
-    except Exception as e:
-        print(f"❌ Ошибка при CHUNKED обработке {audio_path}: {e}", flush=True)
-        # import traceback
-        # traceback.print_exc()
-        return False
-
-
-def transcribe_file_sequential(model, audio_path: Path, language, verbose=False, output_path=None):
-    """Обычная последовательная транскрибация (максимальная точность контекста)."""
-    try:
-        print(f"[STATUS] PREPARING SEQUENTIAL", flush=True)
-        print(f"⚙ Транскрибация: {audio_path.name}", flush=True)
-
-        # Загружаем аудио сами для расчета длительности
-        audio = whisper.load_audio(str(audio_path))
-        duration = audio.shape[0] / whisper.audio.SAMPLE_RATE
-        print(f"[DURATION] {duration:.2f}s", flush=True)
-
-        result = model.transcribe(audio, language=language, verbose=verbose)
-        text = result["text"].strip()
-
-        if output_path:
-            output_path.write_text(text, encoding="utf-8")
-            print(f"✅ Сохранено: {output_path}", flush=True)
-        return True
-    except Exception as e:
-        print(f"❌ Ошибка при обработке {audio_path}: {e}", flush=True)
-        return False
-
-
 def main():
-    parser = argparse.ArgumentParser(description="🎙️ Транскрибация аудио (Sequential / Chunked)")
-
-    parser.add_argument(
-        "--file", type=str,
-        help="▶ Путь к аудиофайлу или директории"
-    )
-    parser.add_argument(
-        "--lang", type=str, default="ru",
-        help='▷ Язык аудио (по умолчанию: "ru")'
-    )
-    parser.add_argument(
-        "--output", type=str, default="transcribe.txt",
-        help='★ Файл для сохранения (для одиночного режима)'
-    )
-    parser.add_argument(
-        "--live", action="store_true", default=False,
-        help="▢ Вывод процесса (verbose)"
-    )
-    parser.add_argument(
-        "--multiple", action="store_true", default=False,
-        help="★ Обработать директорию"
-    )
-
-    # Новые аргументы
-    parser.add_argument(
-        "--method", type=str, choices=["sequential", "chunked"], default="sequential",
-        help="⚙ Метод обработки: sequential (точно, медленно) или chunked (быстро, параллельно)"
-    )
-    parser.add_argument(
-        "--workers", type=int, default=2,
-        help="⚡ Кол-во процессов для chunked режима (по умолчанию: 2)"
-    )
-    parser.add_argument(
-        "--chunk_size", type=int, default=60,
-        help="✂ Размер куска в секундах для chunked режима (по умолчанию: 60)"
-    )
-    parser.add_argument(
-        "--model", type=str, default="small",
-        help="🧠 Модель whisper (tiny, base, small, medium, large)"
-    )
+    parser = argparse.ArgumentParser(description="🎙️ Транскрибация аудио (whisper.cpp wrapper)")
+    parser.add_argument("--file", type=str, required=True, help="▶ Путь к файлу или директории")
+    parser.add_argument("--lang", type=str, default="ru", help='▷ Язык')
+    parser.add_argument("--output", type=str, default="transcription.txt", help='★ Имя выходного файла')
+    parser.add_argument("--multiple", action="store_true", help="★ Обработать директорию")
+    parser.add_argument("--live", action="store_true", help="▢ Подробный вывод")
+    parser.add_argument("--model", type=str, default="base", choices=list(MODEL_MAP.keys()), help="🧠 Модель")
+    parser.add_argument("--wait-time", type=int, default=60, help="⏳ Макс. время ожидания загрузки файла (сек)")
 
     args = parser.parse_args()
+    check_setup()
 
-    # Настройка метода запуска для multiprocessing
-    # Whisper/Torch + Multiprocessing иногда вызывают проблемы с 'fork'. 'spawn' безопаснее.
-    try:
-        multiprocessing.set_start_method('spawn')
-    except RuntimeError:
-        pass # Уже установлено
+    print(f"\n★ whisper.cpp Wrapper | Модель: {args.model} | Язык: {args.lang}")
+    print(f"📂 Путь: {WHISPER_CPP_DIR}\n")
 
-    # Sequential требует загрузку модели В ГЛАВНОМ потоке
-    # Chunked загружает модель В ВОКЕРАХ
-    model = None
-    if args.method == "sequential":
-        print(f"⋯ Загрузка модели '{args.model}' (Main Process)...")
-        model = whisper.load_model(args.model)
-    else:
-        print(f"ℹ В режиме Chunked модель '{args.model}' будет загружена в каждом из {args.workers} воркеров.")
-
-    language = args.lang or None
-
-    # --- Логика выбора файлов ---
     targets = []
-    if args.multiple:
-        directory = Path(args.file) if args.file else Path(".")
-        if directory.is_dir():
-            files = get_audio_files(directory)
-            for f in files:
-                targets.append((f, f.with_suffix(".txt")))
-            print(f"▢ Найдено файлов: {len(targets)}")
-        else:
-            print("❌ Указанный путь не директория")
-            return
-    else:
-        if not args.file:
-             parser.error("--file обязателен")
-        p = Path(args.file)
-        if p.exists():
-             targets.append((p, Path(args.output)))
-        else:
-             print("❌ Файл не найден")
-             return
+    input_path = Path(args.file)
 
-    print(f"\n★ Старт обработки: {len(targets)} файлов | Метод: {args.method.upper()}\n")
+    if args.multiple:
+        if not input_path.is_dir():
+            print(f"❌ Путь '{input_path}' не является директорией.")
+            sys.exit(1)
+        files = get_audio_files(input_path)
+        if not files:
+            print("❌ Аудиофайлы не найдены.")
+            sys.exit(1)
+        for f in files:
+            targets.append((f, f.with_suffix('.txt')))
+        print(f"▢ Найдено файлов: {len(targets)}")
+    else:
+        if not input_path.exists():
+            print(f"❌ Файл '{input_path}' не найден.")
+            sys.exit(1)
+        targets.append((input_path, Path(args.output)))
+
+    print(f"🚀 Старт обработки...\n")
 
     success_count = 0
     for i, (inp, out) in enumerate(targets, 1):
-        print(f"▷ [{i}/{len(targets)}] {inp.name}")
-
-        ok = False
-        if args.method == "sequential":
-             ok = transcribe_file_sequential(model, inp, language, verbose=args.live, output_path=out)
+        prefix = f"[{i}/{len(targets)}]"
+        print(f"{prefix} {inp.name}...", flush=True)
+        
+        if transcribe_file(inp, out, args.model, args.lang, args.live):
+            success_count += 1
         else:
-             ok = transcribe_file_chunked(
-                 inp,
-                 model_name=args.model,
-                 language=language,
-                 chunk_size_sec=args.chunk_size,
-                 workers=args.workers,
-                 verbose=args.live,
-                 output_path=out
-             )
-
-        if ok: success_count += 1
+            print(f"   ⚠ Пропущено из-за ошибки.")
 
     print(f"\n✅ Готово: {success_count}/{len(targets)} завершено.")
 
