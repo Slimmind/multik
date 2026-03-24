@@ -19,7 +19,13 @@ class JobService {
 
   constructor() {
     this.jobs = new Map();
-    this.loadJobs();
+    
+    // Clear jobs.json on startup
+    if (fs.existsSync(JOBS_FILE)) {
+      fs.writeFileSync(JOBS_FILE, '[]', 'utf8');
+      console.log('Cleared jobs.json on startup');
+    }
+
     this.scanOutputDirectory();
 
     // Save jobs periodically to avoid performance hit on every update

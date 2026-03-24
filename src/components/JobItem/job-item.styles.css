@@ -23,7 +23,8 @@
   transform: translateY(-2px);
 }
 
-.file-item.pending {
+.file-item.pending,
+.file-item.queued {
   background-color: var(--warning-color-transparent);
   border-color: var(--warning-color-transparent);
 }
@@ -121,7 +122,8 @@ body.dark-mode .thumbnail-placeholder {
 }
 
 .file-status.pending,
-.file-status.preparing {
+.file-status.preparing,
+.file-status.queued {
   background: rgba(255, 149, 0, 0.1);
   border-color: var(--warning-color-transparent);
   color: var(--warning-color);

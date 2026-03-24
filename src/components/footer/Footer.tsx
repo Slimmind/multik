@@ -6,7 +6,7 @@ export const Footer = () => {
   return (
     <footer className="footer">
         <small className="copyright">
-          slimmind &copy; {new Date().getFullYear()} Multik. {t('app.footer.rights')}
+          _slimmind &copy; {new Date().getFullYear()} Multik. {t('app.footer.rights')}
         </small>
         <small className="semver">
           v{VERSION}
