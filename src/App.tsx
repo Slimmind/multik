@@ -1,109 +1,126 @@
-import React, { useState } from 'react'
-import Header from './components/header'
-import useSocket from './hooks/useSocket'
-import useUploadQueue from './hooks/useUploadQueue'
-import useInit from './hooks/useInit'
-import { JobMode, EncodingMode } from './types'
-import ModeSelector from "./components/ModeSelector"
-import UploadZone from "./components/UploadZone"
-import { EncodingToggle } from "./components/EncodingToggle/EncodingToggle"
-import JobList from "./components/JobList"
-import { useJobs } from './hooks/useJobs'
-import { useJobActions } from './hooks/useJobActions'
-import { Footer } from "./components/footer/Footer"
-import { useNotifications } from './hooks/useNotifications'
+import React, { useState } from 'react';
+import Header from './components/header';
+import useSocket from './hooks/useSocket';
+import useUploadQueue from './hooks/useUploadQueue';
+import useInit from './hooks/useInit';
+import { JobMode, EncodingMode } from './types';
+import ModeSelector from './components/ModeSelector';
+import UploadZone from './components/UploadZone';
+import { EncodingToggle } from './components/EncodingToggle/EncodingToggle';
+import JobList from './components/JobList';
+import { useJobs } from './hooks/useJobs';
+import { useJobActions } from './hooks/useJobActions';
+import { Footer } from './components/footer/Footer';
+import { useNotifications } from './hooks/useNotifications';
+import Sidebar from './components/Sidebar';
 
 export default function App() {
-  const [mode, setMode] = useState<JobMode>('video')
-  const [encodingMode, setEncodingMode] = useState<EncodingMode>('software')
-  const { requestPermission } = useNotifications()
+	const [mode, setMode] = useState<JobMode>('video');
+	const [encodingMode, setEncodingMode] = useState<EncodingMode>('software');
+	const { requestPermission } = useNotifications();
 
-  // Request notification permission on first mount
-  React.useEffect(() => {
-    requestPermission()
-  }, [requestPermission])
+	// Request notification permission on first mount
+	React.useEffect(() => {
+		requestPermission();
+	}, [requestPermission]);
 
-  // -- Initialization --
-  const { clientId, isDarkTheme, toggleTheme, isRPi, systemInfoLoaded } = useInit()
+	// -- Initialization --
+	const { clientId, isDarkTheme, toggleTheme, isRPi, systemInfoLoaded } =
+		useInit();
 
-  // -- State & Data --
-  const { jobs, setJobs, updateJob, moveToTop } = useJobs(clientId)
+	// -- State & Data --
+	const { jobs, setJobs, updateJob, moveToTop } = useJobs(clientId);
 
-  // -- Hooks --
-  const { addToQueue, cancelUpload, retryUpload } = useUploadQueue(clientId, updateJob)
-  useSocket(clientId, updateJob, moveToTop)
+	// -- Hooks --
+	const { addToQueue, cancelUpload, retryUpload } = useUploadQueue(
+		clientId,
+		updateJob,
+	);
+	useSocket(clientId, updateJob, moveToTop);
 
-  // Handle encoding mode persistence and RPi constraints
-  React.useEffect(() => {
-    if (!systemInfoLoaded) return
+	// Handle encoding mode persistence and RPi constraints
+	React.useEffect(() => {
+		if (!systemInfoLoaded) return;
 
-    const savedMode = localStorage.getItem('multik_encoding_mode') as EncodingMode
+		const savedMode = localStorage.getItem(
+			'multik_encoding_mode',
+		) as EncodingMode;
 
-    if (isRPi) {
-      if (savedMode === 'software') {
-        setEncodingMode('software')
-      } else {
-        setEncodingMode('hardware')
-      }
-    } else {
-      setEncodingMode('software')
-    }
-  }, [isRPi, systemInfoLoaded])
+		if (isRPi) {
+			if (savedMode === 'software') {
+				setEncodingMode('software');
+			} else {
+				setEncodingMode('hardware');
+			}
+		} else {
+			setEncodingMode('software');
+		}
+	}, [isRPi, systemInfoLoaded]);
 
-  const handleSetEncodingMode = (newMode: EncodingMode) => {
-    setEncodingMode(newMode)
-    localStorage.setItem('multik_encoding_mode', newMode)
-  }
+	const handleSetEncodingMode = (newMode: EncodingMode) => {
+		setEncodingMode(newMode);
+		localStorage.setItem('multik_encoding_mode', newMode);
+	};
 
-  // -- Actions --
-  const {
-    handleFilesSelected,
-    handleCancel,
-    handleDelete,
-    handleRetry,
-    handleTranscribe,
-    handleCorrect
-  } = useJobActions({
-    jobs,
-    setJobs,
-    updateJob,
-    clientId,
-    cancelUpload,
-    retryUpload,
-    setMode
-  })
+	// -- Actions --
+	const {
+		handleFilesSelected,
+		handleCancel,
+		handleDelete,
+		handleRetry,
+		handleTranscribe,
+		handleCorrect,
+	} = useJobActions({
+		jobs,
+		setJobs,
+		updateJob,
+		clientId,
+		cancelUpload,
+		retryUpload,
+		setMode,
+	});
 
-  return (
-    <>
-      <Header isDarkTheme={isDarkTheme} toggleTheme={toggleTheme} />
+	return (
+		<>
+			<Header isDarkTheme={isDarkTheme} toggleTheme={toggleTheme} />
 
-      <ModeSelector mode={mode} setMode={setMode} />
+			<div className='app-wrapper'>
+				<Sidebar>
+					<ModeSelector mode={mode} setMode={setMode} />
+				</Sidebar>
 
-      <UploadZone
-        onFilesSelected={(files) => handleFilesSelected(files, mode, encodingMode, addToQueue)}
-        mode={mode}
-      />
+				<div className='content'>
+					<UploadZone
+						onFilesSelected={(files) =>
+							handleFilesSelected(files, mode, encodingMode, addToQueue)
+						}
+						mode={mode}
+					/>
 
-      {/* Encoding Mode Toggle */}
-      {mode === 'video' && isRPi && (
-        <EncodingToggle
-          encodingMode={encodingMode}
-          setEncodingMode={handleSetEncodingMode}
-          disabled={jobs.some(job => job.status !== 'completed' && job.status !== 'error')}
-        />
-      )}
+					{/* Encoding Mode Toggle */}
+					{mode === 'video' && isRPi && (
+						<EncodingToggle
+							encodingMode={encodingMode}
+							setEncodingMode={handleSetEncodingMode}
+							disabled={jobs.some(
+								(job) => job.status !== 'completed' && job.status !== 'error',
+							)}
+						/>
+					)}
 
-      <JobList
-        jobs={jobs}
-        mode={mode}
-        onCancel={handleCancel}
-        onDelete={handleDelete}
-        onRetry={handleRetry}
-        onTranscribe={handleTranscribe}
-        onCorrect={handleCorrect}
-      />
+					<JobList
+						jobs={jobs}
+						mode={mode}
+						onCancel={handleCancel}
+						onDelete={handleDelete}
+						onRetry={handleRetry}
+						onTranscribe={handleTranscribe}
+						onCorrect={handleCorrect}
+					/>
+				</div>
+			</div>
 
-      <Footer />
-    </>
-  )
+			<Footer />
+		</>
+	);
 }
