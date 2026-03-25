@@ -85,6 +85,18 @@ ul {
   list-style: none;
 }
 
+@media screen and (min-width: 1024px) {
+  .app-wrapper {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .content {
+    width: 100%;
+    padding: 0 10px;
+  }
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
