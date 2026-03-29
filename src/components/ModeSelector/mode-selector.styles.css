@@ -2,13 +2,14 @@
 .segmented-control {
   position: relative;
   display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
   margin: 0 auto 10px auto;
+  padding: 10px;
   background: rgba(118, 118, 128, 0.12);
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: 3px;
-  width: 100%;
-  max-width: 480px;
+  border-radius: var(--radius-md);
 }
 
 .segmented-control:hover {
@@ -20,7 +21,9 @@
 }
 
 .segmented-control label {
-  padding: 4px 10px;
+  flex-shrink: 0;
+  padding: 10px;
+  border: 1px solid var(--primary-color);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -42,13 +45,6 @@
   background: rgba(128, 128, 128, 0.08);
 }
 
-@media (orientation: landscape) {
-  .segmented-control {
-    margin-top: -51px;
-    margin-bottom: 40px;
-  }
-}
-
 @media screen and (min-width: 1024px) {
   .segmented-control {
     flex-direction: column;
@@ -64,8 +60,6 @@
 
   .segmented-control label {
     width: 100%;
-    padding: 10px;
-    border: 1px solid var(--primary-color);
   }
 
   .segmented-control input:not(:checked)+label:hover {

@@ -1,97 +1,115 @@
-import { useEffect, useRef } from 'react'
-import { JobStatus, Job } from '../types'
+import { useEffect, useRef } from 'react';
+import { JobStatus, Job } from '../types';
 import { useNotifications } from './useNotifications';
 
 // Type definitions for Socket.IO events
 interface StatusChangeData {
-  id: string;
-  status: JobStatus;
+	id: string;
+	status: JobStatus;
 }
 
 interface ProgressData {
-  id: string;
-  progress: number;
+	id: string;
+	progress: number;
 }
 
 interface CompleteData {
-  id: string;
-  url: string;
-  compressionRatio?: number;
-  duration?: string;
+	id: string;
+	url: string;
+	compressionRatio?: number;
+	duration?: string;
 }
 
 interface ErrorData {
-  id: string;
-  message: string;
+	id: string;
+	message: string;
 }
 
 interface ThumbnailData {
-  id: string;
-  url: string;
+	id: string;
+	url: string;
+}
+
+interface ComplexProgressData {
+	id: string;
+	stage: 'mp4' | 'mp3';
+	url: string;
 }
 
 declare global {
-  interface Window {
-    io: any;
-  }
+	interface Window {
+		io: any;
+	}
 }
 
 export default function useSocket(
-  clientId: string,
-  onUpdateJob: (id: string, updates: Partial<Job>) => void,
-  onMoveToTop: (id: string) => void
+	clientId: string,
+	onUpdateJob: (id: string, updates: Partial<Job>) => void,
+	onMoveToTop: (id: string) => void,
 ) {
-  const socketRef = useRef<any>(null)
-  const { notifyJobStatus } = useNotifications();
+	const socketRef = useRef<any>(null);
+	const { notifyJobStatus } = useNotifications();
 
-  useEffect(() => {
-    if (!clientId) return
+	useEffect(() => {
+		if (!clientId) return;
 
-    if (window.io) {
-      const socket = window.io({ query: { clientId } })
-      socketRef.current = socket
+		if (window.io) {
+			const socket = window.io({ query: { clientId } });
+			socketRef.current = socket;
 
-      socket.on('connect', () => console.log('[Socket] Connected'))
+			socket.on('connect', () => console.log('[Socket] Connected'));
 
-      socket.on('status_change', (data: StatusChangeData) => {
-        onUpdateJob(data.id, { status: data.status })
-        if (data.status === 'processing') {
-          onMoveToTop(data.id)
-        }
-      })
+			socket.on('status_change', (data: StatusChangeData) => {
+				onUpdateJob(data.id, { status: data.status });
+				if (data.status === 'processing') {
+					onMoveToTop(data.id);
+				}
+			});
 
-      socket.on('progress', (data: ProgressData) => {
-        onUpdateJob(data.id, { progress: data.progress })
-      })
+			socket.on('progress', (data: ProgressData) => {
+				onUpdateJob(data.id, { progress: data.progress });
+			});
 
-      socket.on('complete', (data: CompleteData) => {
-        onUpdateJob(data.id, {
-          status: 'completed',
-          url: data.url,
-          compressionRatio: data.compressionRatio,
-          duration: data.duration,
-          progress: 100
-        })
-        notifyJobStatus({ id: data.id, status: 'completed' } as Job);
-      })
+			socket.on('complete', (data: CompleteData) => {
+				onUpdateJob(data.id, {
+					status: 'completed',
+					url: data.url,
+					compressionRatio: data.compressionRatio,
+					duration: data.duration,
+					progress: 100,
+				});
+				notifyJobStatus({ id: data.id, status: 'completed' } as Job);
+			});
 
-      socket.on('error', (data: ErrorData) => {
-        onUpdateJob(data.id, { status: 'error', error: data.message })
-        notifyJobStatus({ id: data.id, status: 'error', error: data.message } as Job);
-      })
+			socket.on('error', (data: ErrorData) => {
+				onUpdateJob(data.id, { status: 'error', error: data.message });
+				notifyJobStatus({
+					id: data.id,
+					status: 'error',
+					error: data.message,
+				} as Job);
+			});
 
-      socket.on('thumbnail', (data: ThumbnailData) => {
-        onUpdateJob(data.id, { thumbnail: data.url })
-      })
-    }
+			socket.on('thumbnail', (data: ThumbnailData) => {
+				onUpdateJob(data.id, { thumbnail: data.url });
+			});
 
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect()
-        socketRef.current = null
-      }
-    }
-  }, [clientId, onUpdateJob, onMoveToTop])
+			socket.on('complex_progress', (data: ComplexProgressData) => {
+				if (data.stage === 'mp4') {
+					onUpdateJob(data.id, { mp4Url: data.url });
+				} else if (data.stage === 'mp3') {
+					onUpdateJob(data.id, { mp3Url: data.url });
+				}
+			});
+		}
 
-  return socketRef.current
+		return () => {
+			if (socketRef.current) {
+				socketRef.current.disconnect();
+				socketRef.current = null;
+			}
+		};
+	}, [clientId, onUpdateJob, onMoveToTop]);
+
+	return socketRef.current;
 }

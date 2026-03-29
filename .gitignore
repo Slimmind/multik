@@ -109,6 +109,9 @@ dist
 .dvc
 
 .DS_Store
+.qwen/
+
+QWEN.md
 
 # Auto-generated files
 src/version.ts

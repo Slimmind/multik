@@ -85,15 +85,14 @@ ul {
   list-style: none;
 }
 
+.content {
+  width: 100%;
+}
+
 @media screen and (min-width: 1024px) {
   .app-wrapper {
     display: flex;
     flex-direction: row;
-  }
-
-  .content {
-    width: 100%;
-    padding: 0 10px;
   }
 }
 
