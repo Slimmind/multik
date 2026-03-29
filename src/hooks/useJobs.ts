@@ -41,7 +41,7 @@ export const useJobs = (clientId: string | null) => {
   // Handle automatic transcription text fetching
   useEffect(() => {
     jobs.forEach(job => {
-      if (job.mode === 'transcription' && job.status === 'completed' && job.url && !job.transcriptionText && !job.fetchedText) {
+      if ((job.mode === 'transcription' || job.mode === 'complex') && job.status === 'completed' && job.url && !job.transcriptionText && !job.fetchedText) {
         updateJob(job.id, { fetchedText: true })
         fetch(job.url)
           .then(r => r.text())

@@ -10,217 +10,260 @@ type CompleteCallback = (url: string, ratio: number | null) => void;
 type ErrorCallback = (type: string, message?: string) => void;
 
 class FFmpegService {
-  private timeToSeconds(timeStr: string): number {
-    const [h, m, s] = timeStr.split(':').map(parseFloat);
-    return h * 3600 + m * 60 + s;
-  }
+	private timeToSeconds(timeStr: string): number {
+		const [h, m, s] = timeStr.split(':').map(parseFloat);
+		return h * 3600 + m * 60 + s;
+	}
 
-  async generateThumbnail(job: any, callback: ThumbnailCallback): Promise<void> {
-    const thumbnailName = `thumb-${job.id}.jpg`;
-    const outputDir = path.resolve('output');
-    const thumbnailPath = path.join(outputDir, thumbnailName);
-    const inputPath = path.resolve(job.inputPath);
+	async generateThumbnail(
+		job: any,
+		callback: ThumbnailCallback,
+	): Promise<void> {
+		const thumbnailName = `thumb-${job.id}.jpg`;
+		const outputDir = path.resolve('output');
+		const thumbnailPath = path.join(outputDir, thumbnailName);
+		const inputPath = path.resolve(job.inputPath);
 
-    console.log(`Generating thumbnail. Input: ${inputPath}, Output: ${thumbnailPath}`);
+		console.log(
+			`Generating thumbnail. Input: ${inputPath}, Output: ${thumbnailPath}`,
+		);
 
-    const cmd = [
-      'ffmpeg',
-      '-ss', '00:00:00.500',
-      '-i', inputPath,
-      '-vframes', '1',
-      '-vf', `scale=${config.ffmpeg.thumbnailWidth}:-1`,
-      '-q:v', '2',
-      '-y',
-      thumbnailPath
-    ];
+		const cmd = [
+			'ffmpeg',
+			'-ss',
+			'00:00:00.500',
+			'-i',
+			inputPath,
+			'-vframes',
+			'1',
+			'-vf',
+			`scale=${config.ffmpeg.thumbnailWidth}:-1`,
+			'-q:v',
+			'2',
+			'-y',
+			thumbnailPath,
+		];
 
-    try {
-      const proc = Bun.spawn(cmd, {
-        stderr: 'pipe',
-      });
+		try {
+			const proc = Bun.spawn(cmd, {
+				stderr: 'pipe',
+			});
 
-      const stderr = await new Response(proc.stderr).text();
-      await proc.exited;
+			const stderr = await new Response(proc.stderr).text();
+			await proc.exited;
 
-      if (proc.exitCode === 0) {
-        if (await Bun.file(thumbnailPath).exists()) {
-          const url = `/output/${thumbnailName}`;
-          console.log(`[FFmpeg] Thumbnail generated: ${url}`);
-          callback(null, url);
-        } else {
-          console.error(`[FFmpeg] Thumbnail file not found after success exit: ${thumbnailPath}`);
-          callback(new Error('Thumbnail file creation failed'));
-        }
-      } else {
-        console.error(`[FFmpeg] Thumbnail failed (Code ${proc.exitCode}). Command: ${cmd.join(' ')}`);
-        console.error(`[FFmpeg] Stderr: ${stderr}`);
-        callback(new Error(stderr));
-      }
-    } catch (e: any) {
-      console.error('[FFmpeg] Thumbnail spawn error:', e);
-      callback(e);
-    }
-  }
+			if (proc.exitCode === 0) {
+				if (await Bun.file(thumbnailPath).exists()) {
+					const url = `/output/${thumbnailName}`;
+					console.log(`[FFmpeg] Thumbnail generated: ${url}`);
+					callback(null, url);
+				} else {
+					console.error(
+						`[FFmpeg] Thumbnail file not found after success exit: ${thumbnailPath}`,
+					);
+					callback(new Error('Thumbnail file creation failed'));
+				}
+			} else {
+				console.error(
+					`[FFmpeg] Thumbnail failed (Code ${proc.exitCode}). Command: ${cmd.join(' ')}`,
+				);
+				console.error(`[FFmpeg] Stderr: ${stderr}`);
+				callback(new Error(stderr));
+			}
+		} catch (e: any) {
+			console.error('[FFmpeg] Thumbnail spawn error:', e);
+			callback(e);
+		}
+	}
 
-  async convert(
-    job: any,
-    onProgress: ProgressCallback,
-    onComplete: CompleteCallback,
-    onError: ErrorCallback
-  ): Promise<void> {
-    const originalName = path.parse(job.filename).name;
-    const extension = job.mode === 'audio' ? '.mp3' : '.mp4';
-    const outputFile = path.join('output', `${originalName}${extension}`);
+	async convert(
+		job: any,
+		onProgress: ProgressCallback,
+		onComplete: CompleteCallback,
+		onError: ErrorCallback,
+	): Promise<void> {
+		const originalName = path.parse(job.filename).name;
+		const isComplex = job.mode === 'complex';
+		// For complex mode, check if we already have mp4Url (meaning step 1 is done)
+		// If mp4Url exists but mp3Url doesn't, we're extracting audio
+		const isAudio =
+			job.mode === 'audio' || (isComplex && job.mp4Url && !job.mp3Url);
+		const extension = isAudio ? '.mp3' : '.mp4';
+		const outputFile = path.join('output', `${originalName}${extension}`);
 
-    console.log(`Starting conversion for job ${job.id}, file: ${job.inputPath}`);
+		console.log(
+			`Starting conversion for job ${job.id}, file: ${job.inputPath}, mode: ${job.mode}, isAudio: ${isAudio}`,
+		);
 
-    const ffmpegArgs = ['-threads', String(config.ffmpeg.threads), '-i', job.inputPath];
+		const ffmpegArgs = [
+			'-threads',
+			String(config.ffmpeg.threads),
+			'-i',
+			job.inputPath,
+		];
 
-    if (job.mode === 'audio') {
-      ffmpegArgs.push(
-        '-vn',
-        '-c:a', 'libmp3lame',
-        '-b:a', '192k'
-      );
-    } else {
-       if (job.encodingMode === 'software') {
-           ffmpegArgs.push(
-               '-c:v', 'libx264',
-               '-preset', config.ffmpeg.videoPreset,
-               '-threads', String(config.ffmpeg.threads),
-               '-x264-params', `threads=${config.ffmpeg.threads}`,
-               '-c:a', 'aac'
-           );
-       } else {
-           ffmpegArgs.push(
-            '-vf', 'fps=30,scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p',
-            '-pix_fmt', 'yuv420p',
-            '-c:v', 'h264_v4l2m2m',
-            '-b:v', config.ffmpeg.videoBitrate,
-            '-c:a', 'aac'
-          );
-       }
-    }
+		if (isAudio) {
+			ffmpegArgs.push('-vn', '-c:a', 'libmp3lame', '-b:a', '192k');
+		} else {
+			if (job.encodingMode === 'software') {
+				ffmpegArgs.push(
+					'-c:v',
+					'libx264',
+					'-preset',
+					config.ffmpeg.videoPreset,
+					'-threads',
+					String(config.ffmpeg.threads),
+					'-x264-params',
+					`threads=${config.ffmpeg.threads}`,
+					'-c:a',
+					'aac',
+				);
+			} else {
+				ffmpegArgs.push(
+					'-vf',
+					'fps=30,scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p',
+					'-pix_fmt',
+					'yuv420p',
+					'-c:v',
+					'h264_v4l2m2m',
+					'-b:v',
+					config.ffmpeg.videoBitrate,
+					'-c:a',
+					'aac',
+				);
+			}
+		}
 
-    ffmpegArgs.push('-y', outputFile);
+		ffmpegArgs.push('-y', outputFile);
 
-    const cmd = ['ffmpeg', ...ffmpegArgs];
+		const cmd = ['ffmpeg', ...ffmpegArgs];
 
-    try {
-      const proc = Bun.spawn(cmd, {
-        stderr: 'pipe',
-      });
+		try {
+			const proc = Bun.spawn(cmd, {
+				stderr: 'pipe',
+			});
 
-      job.process = proc;
+			job.process = proc;
 
-      let duration: number | null = null;
-      let lastProgress = -1;
-      let stderrLog: string[] = [];
-      const MAX_LOG_LINES = 50;
+			let duration: number | null = null;
+			let lastProgress = -1;
+			let stderrLog: string[] = [];
+			const MAX_LOG_LINES = 50;
 
-      const reader = proc.stderr.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+			const reader = proc.stderr.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
 
-      const processOutput = async () => {
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+			const processOutput = async () => {
+				try {
+					while (true) {
+						const { done, value } = await reader.read();
+						if (done) break;
 
-            buffer += decoder.decode(value, { stream: true });
+						buffer += decoder.decode(value, { stream: true });
 
-            while (true) {
-              const nIndex = buffer.indexOf('\n');
-              const rIndex = buffer.indexOf('\r');
+						while (true) {
+							const nIndex = buffer.indexOf('\n');
+							const rIndex = buffer.indexOf('\r');
 
-              if (nIndex === -1 && rIndex === -1) break;
+							if (nIndex === -1 && rIndex === -1) break;
 
-              let splitIndex;
-              if (nIndex !== -1 && rIndex !== -1) {
-                splitIndex = Math.min(nIndex, rIndex);
-              } else {
-                splitIndex = (nIndex !== -1) ? nIndex : rIndex;
-              }
+							let splitIndex;
+							if (nIndex !== -1 && rIndex !== -1) {
+								splitIndex = Math.min(nIndex, rIndex);
+							} else {
+								splitIndex = nIndex !== -1 ? nIndex : rIndex;
+							}
 
-              const line = buffer.slice(0, splitIndex).trim();
+							const line = buffer.slice(0, splitIndex).trim();
 
-              let nextStart = splitIndex + 1;
-              if (buffer[splitIndex] === '\r' && buffer[nextStart] === '\n') {
-                nextStart++;
-              }
+							let nextStart = splitIndex + 1;
+							if (buffer[splitIndex] === '\r' && buffer[nextStart] === '\n') {
+								nextStart++;
+							}
 
-              buffer = buffer.slice(nextStart);
+							buffer = buffer.slice(nextStart);
 
-              if (!line) continue;
+							if (!line) continue;
 
-              if (stderrLog.length > MAX_LOG_LINES) {
-                stderrLog.shift();
-              }
-              stderrLog.push(line);
+							if (stderrLog.length > MAX_LOG_LINES) {
+								stderrLog.shift();
+							}
+							stderrLog.push(line);
 
-              if (duration === null) {
-                const durMatch = line.match(/Duration:\s*(\d+:\d+:\d+(?:\.\d+)?)/);
-                if (durMatch) {
-                  duration = this.timeToSeconds(durMatch[1]);
-                }
-              }
+							if (duration === null) {
+								const durMatch = line.match(
+									/Duration:\s*(\d+:\d+:\d+(?:\.\d+)?)/,
+								);
+								if (durMatch) {
+									duration = this.timeToSeconds(durMatch[1]);
+								}
+							}
 
-              if (duration) {
-                const timeMatch = line.match(/time=\s*(\d+:\d+:\d+(?:\.\d+)?)/);
-                if (timeMatch) {
-                  const currentTime = this.timeToSeconds(timeMatch[1]);
-                  const progress = Math.min(99, Math.floor((currentTime / duration) * 100));
+							if (duration) {
+								const timeMatch = line.match(/time=\s*(\d+:\d+:\d+(?:\.\d+)?)/);
+								if (timeMatch) {
+									const currentTime = this.timeToSeconds(timeMatch[1]);
+									const progress = Math.min(
+										99,
+										Math.floor((currentTime / duration) * 100),
+									);
 
-                  if (progress > lastProgress) {
-                    lastProgress = progress;
-                    onProgress(progress);
-                  }
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.error('[FFmpeg] Error reading stderr stream:', e);
-        }
-      };
+									if (progress > lastProgress) {
+										lastProgress = progress;
+										onProgress(progress);
+									}
+								}
+							}
+						}
+					}
+				} catch (e) {
+					console.error('[FFmpeg] Error reading stderr stream:', e);
+				}
+			};
 
-      processOutput();
+			processOutput();
 
-      const exitCode = await proc.exited;
-      job.process = null;
+			const exitCode = await proc.exited;
+			job.process = null;
 
-      try { await unlink(job.inputPath); } catch(e) {}
+			// Don't delete input file for complex mode - we need intermediate results
+			if (job.mode !== 'complex') {
+				try {
+					await unlink(job.inputPath);
+				} catch (e) {}
+			}
 
-      if (proc.signalCode === 'SIGKILL' || proc.signalCode === 'SIGTERM') {
-          try { await unlink(outputFile); } catch(e) {}
-          onError('cancelled');
-      } else if (exitCode === 0) {
-        const url = `/output/${path.basename(outputFile)}`;
-        let ratio: number | null = 0;
-        try {
-          if (job.mode !== 'audio') {
-            const newSize = Bun.file(outputFile).size;
-            if (job.originalSize > 0) {
-              ratio = Math.round((1 - newSize / job.originalSize) * 100);
-            }
-          } else {
-            ratio = null;
-          }
-        } catch (e) {
-          console.error('Error calculating ratio:', e);
-        }
-        onComplete(url, ratio);
-      } else {
-        console.error('FFmpeg error:\n', stderrLog.join('\n'));
-        onError('failed', stderrLog.join('\n'));
-      }
-
-    } catch (e: any) {
-      console.error(`[FFmpeg] Spawn error for job ${job.id}:`, e);
-      onError('failed', e.message);
-    }
-  }
+			if (proc.signalCode === 'SIGKILL' || proc.signalCode === 'SIGTERM') {
+				try {
+					await unlink(outputFile);
+				} catch (e) {}
+				onError('cancelled');
+			} else if (exitCode === 0) {
+				const url = `/output/${path.basename(outputFile)}`;
+				let ratio: number | null = 0;
+				try {
+					if (job.mode !== 'audio') {
+						const newSize = Bun.file(outputFile).size;
+						if (job.originalSize > 0) {
+							ratio = Math.round((1 - newSize / job.originalSize) * 100);
+						}
+					} else {
+						ratio = null;
+					}
+				} catch (e) {
+					console.error('Error calculating ratio:', e);
+				}
+				onComplete(url, ratio);
+			} else {
+				console.error('FFmpeg error:\n', stderrLog.join('\n'));
+				onError('failed', stderrLog.join('\n'));
+			}
+		} catch (e: any) {
+			console.error(`[FFmpeg] Spawn error for job ${job.id}:`, e);
+			onError('failed', e.message);
+		}
+	}
 }
 
 export default new FFmpegService();
